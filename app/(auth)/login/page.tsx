@@ -10,8 +10,8 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
     <>
       <header className="flex flex-col gap-2">
-        <h1 className="text-title font-bold">Atlas</h1>
-        <p className="text-base text-muted">Entra para ver tu día.</p>
+        <h1 className="text-title font-bold">Entra en Atlas</h1>
+        <p className="text-base text-muted">Tus tareas y apuntes te esperan.</p>
       </header>
       <Suspense fallback={<FormSkeleton />}>
         <LoginForm searchParams={searchParams} />

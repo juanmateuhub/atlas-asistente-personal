@@ -33,6 +33,35 @@
   --text-caption--line-height: 1.4;
 
   --radius-atlas: 21px;
+
+  /* Motion: only transform/opacity, ≤200ms for interaction feedback, ease-out. */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-press: 120ms;
+  --duration-ui: 180ms;
+
+  --animate-enter: enter var(--duration-ui) var(--ease-out-soft) both;
+  --animate-skeleton: skeleton 1.2s ease-in-out infinite;
+
+  @keyframes enter {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+
+  @keyframes skeleton {
+    50% {
+      opacity: 0.5;
+    }
+  }
+}
+
+/* Tactile press feedback for anything clickable. */
+@utility pressable {
+  transition: transform var(--duration-press) var(--ease-out-soft);
+  &:active:not(:disabled) {
+    transform: scale(0.97);
+  }
 }
 
 @layer base {
@@ -66,5 +95,48 @@
   [aria-disabled="true"] {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  /* Native <dialog>: fade + scale in and out (transform/opacity only). */
+  dialog {
+    opacity: 0;
+    transform: scale(0.96);
+    transition:
+      opacity var(--duration-ui) var(--ease-out-soft),
+      transform var(--duration-ui) var(--ease-out-soft),
+      overlay var(--duration-ui) allow-discrete,
+      display var(--duration-ui) allow-discrete;
+  }
+  dialog[open] {
+    opacity: 1;
+    transform: scale(1);
+    @starting-style {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+  dialog::backdrop {
+    opacity: 0;
+    transition:
+      opacity var(--duration-ui) var(--ease-out-soft),
+      overlay var(--duration-ui) allow-discrete,
+      display var(--duration-ui) allow-discrete;
+  }
+  dialog[open]::backdrop {
+    opacity: 1;
+    @starting-style {
+      opacity: 0;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after,
+  ::backdrop {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

@@ -1,14 +1,17 @@
 export const inputClass =
-  "w-full rounded-atlas border border-line bg-surface px-4 py-3 text-base text-ink focus-visible:border-accent";
+  "w-full rounded-atlas border border-line bg-surface px-4 py-3 text-base text-ink placeholder:text-muted focus-visible:border-accent";
 
 export const primaryButtonClass =
-  "rounded-atlas bg-accent px-6 py-3 text-base font-medium text-white hover:bg-raised";
+  "pressable rounded-atlas bg-accent px-6 py-3 text-base font-medium text-white hover:bg-raised";
 
 export const secondaryButtonClass =
-  "rounded-atlas border border-line px-6 py-3 text-base font-medium text-ink hover:bg-raised hover:text-white";
+  "pressable rounded-atlas border border-line px-6 py-3 text-base font-medium text-ink hover:bg-line/30";
 
 export const dangerButtonClass =
-  "rounded-atlas bg-red-700 px-6 py-3 text-base font-medium text-white hover:bg-red-800";
+  "pressable rounded-atlas bg-red-700 px-6 py-3 text-base font-medium text-white hover:bg-red-800";
+
+export const iconButtonClass =
+  "pressable flex size-10 shrink-0 items-center justify-center rounded-atlas text-muted hover:bg-line/30 hover:text-ink";
 
 export function Field({
   label,
@@ -35,7 +38,7 @@ export function Field({
 export function FormError({ message }: { message?: string }) {
   if (!message) return null;
   return (
-    <p role="alert" className="text-sm text-red-700">
+    <p role="alert" className="animate-enter text-sm text-red-700">
       {message}
     </p>
   );

@@ -1,4 +1,5 @@
 import { LogOut } from "lucide-react";
+import { iconButtonClass } from "@/components/ui/form";
 import { logout } from "@/app/(auth)/actions";
 import { getCurrentUser } from "@/lib/auth/user";
 
@@ -17,7 +18,7 @@ export async function UserMenu({ compact = false }: { compact?: boolean }) {
         type="submit"
         aria-label="Cerrar sesión"
         title="Cerrar sesión"
-        className="flex size-10 items-center justify-center rounded-atlas text-muted hover:bg-raised hover:text-white"
+        className={iconButtonClass}
       >
         <LogOut aria-hidden className="size-5" />
       </button>
