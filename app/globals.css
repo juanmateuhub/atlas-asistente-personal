@@ -140,3 +140,80 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Rich-text notes (Tiptap). Reading column: ~70ch, 16px body, generous leading. */
+@layer components {
+  .note-content {
+    max-width: 70ch;
+    font-size: var(--text-base);
+    line-height: 1.7;
+    color: var(--color-body);
+    outline: none;
+    min-height: 50dvh;
+
+    & > * + * {
+      margin-top: 12px;
+    }
+    & h2 {
+      margin-top: 32px;
+      font-size: var(--text-lead);
+      line-height: var(--text-lead--line-height);
+      font-weight: 700;
+    }
+    & h3 {
+      margin-top: 24px;
+      font-size: 20px;
+      line-height: 1.4;
+      font-weight: 600;
+    }
+    & ul,
+    & ol {
+      padding-left: 24px;
+    }
+    & ul {
+      list-style: disc;
+    }
+    & ol {
+      list-style: decimal;
+    }
+    & li + li {
+      margin-top: 4px;
+    }
+    & li::marker {
+      color: var(--color-accent);
+    }
+    & blockquote {
+      border-left: 2px solid var(--color-accent);
+      padding-left: 16px;
+      color: var(--color-muted);
+    }
+    & code {
+      border-radius: 4px;
+      background: color-mix(in srgb, var(--color-line) 25%, transparent);
+      padding: 2px 4px;
+      font-size: 0.9em;
+    }
+    & pre {
+      border-radius: var(--radius-atlas);
+      background: color-mix(in srgb, var(--color-line) 20%, transparent);
+      padding: 16px 20px;
+      overflow-x: auto;
+      & code {
+        background: none;
+        padding: 0;
+      }
+    }
+    & a {
+      color: var(--color-accent);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    & p.is-editor-empty:first-child::before {
+      content: attr(data-placeholder);
+      float: left;
+      height: 0;
+      color: var(--color-muted);
+      pointer-events: none;
+    }
+  }
+}

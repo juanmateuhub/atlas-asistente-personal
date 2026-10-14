@@ -8,8 +8,14 @@ import { isActive, navItems } from "./nav-items";
 
 /** Desktop sidebar. Hidden below md, where TabBar takes over. */
 export function Sidebar({ footer }: { footer?: React.ReactNode }) {
-  const pathname = usePathname();
+  return <SidebarFrame pathname={usePathname()} footer={footer} />;
+}
 
+/**
+ * Pathname-free render, used as the Suspense fallback: reading the URL in a
+ * dynamic route must not block the static shell.
+ */
+export function SidebarFrame({ pathname, footer }: { pathname: string | null; footer?: React.ReactNode }) {
   return (
     <nav
       aria-label="Principal"
@@ -21,7 +27,7 @@ export function Sidebar({ footer }: { footer?: React.ReactNode }) {
       </Link>
       <ul className="flex flex-col gap-1">
         {navItems.map(({ href, label, icon: Icon }) => {
-          const active = isActive(pathname, href);
+          const active = pathname !== null && isActive(pathname, href);
           return (
             <li key={href}>
               <Link
@@ -52,8 +58,10 @@ export function Sidebar({ footer }: { footer?: React.ReactNode }) {
 
 /** Mobile bottom tab bar, respecting the safe-area inset. */
 export function TabBar() {
-  const pathname = usePathname();
+  return <TabBarFrame pathname={usePathname()} />;
+}
 
+export function TabBarFrame({ pathname }: { pathname: string | null }) {
   return (
     <nav
       aria-label="Principal"
@@ -61,7 +69,7 @@ export function TabBar() {
     >
       <ul className="flex">
         {navItems.map(({ href, label, icon: Icon }) => {
-          const active = isActive(pathname, href);
+          const active = pathname !== null && isActive(pathname, href);
           return (
             <li key={href} className="flex-1">
               <Link

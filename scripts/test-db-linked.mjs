@@ -35,7 +35,8 @@ function toRunner(sql) {
       out.push(line);
     }
   }
-  if (!out[1]?.startsWith("begin") || !out.some((l) => l.includes("TAP-RESULT"))) {
+  const firstStatement = out.find((l) => l.trim() && !l.trim().startsWith("--"));
+  if (firstStatement?.trim() !== "begin;" || !out.some((l) => l.includes("TAP-RESULT"))) {
     throw new Error("Test file must start with `begin;` and end with `rollback;`");
   }
   return out.join("\n");
