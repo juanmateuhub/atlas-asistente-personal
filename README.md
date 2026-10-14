@@ -24,14 +24,17 @@ npm run build
 ```
 app/
   layout.tsx          # raíz: fuente Inter, metadatos
-  globals.css         # tokens de diseño
-  (app)/              # shell con navegación
+  globals.css         # tokens de diseño, animaciones, estilos de apuntes
+  (auth)/             # login, registro
+  (app)/              # shell autenticado
     page.tsx          # Inicio
     tareas/
-    universidad/
-components/
-  shell/              # sidebar (desktop) y tab bar (móvil)
-  ui/                 # primitivas reutilizables
+    calendario/       # mes + agenda del día
+    universidad/      # asignaturas > temas > páginas, exámenes
+components/           # shell, ui, tasks, university, home
+lib/                  # dominio: auth, tasks, university, home, supabase
+supabase/             # migraciones y tests pgTAP
+tests/                # Vitest
 ```
 
 ## Base de datos
@@ -52,5 +55,10 @@ npm run test:db                           # pgTAP contra el proyecto enlazado, s
 
 - Fase 2 (identidad): login, registro con confirmación por correo, cierre de sesión y rutas protegidas por `proxy.ts`.
 - Fase 3 (tareas): crear, editar, completar, borrar y filtrar; tabla `tasks` con RLS probada.
+- Fase 4 (universidad): asignaturas, temas, apuntes con editor y guardado automático, exámenes.
+- Fase 5 (calendario): vista de mes con eventos propios, fechas límite de tareas y exámenes.
+- Fase 8 (inicio): resumen del día derivado de tareas, exámenes y apuntes recientes.
+
+Primera versión (MVP) completa. Siguiente: fitness y el asistente Jax.
 
 Variables: copia `.env.example` a `.env.local`. Tests: `npm test` y `npm run test:db`.

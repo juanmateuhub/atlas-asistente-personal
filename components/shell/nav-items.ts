@@ -1,4 +1,4 @@
-import { BookOpen, CheckSquare, Home, type LucideIcon } from "lucide-react";
+import { BookOpen, CalendarDays, CheckSquare, Home, type LucideIcon } from "lucide-react";
 
 export type NavItem = {
   href: string;
@@ -9,6 +9,7 @@ export type NavItem = {
 export const navItems: NavItem[] = [
   { href: "/", label: "Inicio", icon: Home },
   { href: "/tareas", label: "Tareas", icon: CheckSquare },
+  { href: "/calendario", label: "Calendario", icon: CalendarDays },
   { href: "/universidad", label: "Universidad", icon: BookOpen },
 ];
 

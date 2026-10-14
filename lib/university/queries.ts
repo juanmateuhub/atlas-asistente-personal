@@ -108,6 +108,31 @@ export async function getSubjectDetail(
   return { subject: subjectRes.data, topics, exams: examsRes.data.map(toExam) };
 }
 
+export type RecentPage = { id: string; title: string; updatedAt: string; subjectId: string; subjectName: string };
+
+/** Most recently edited note pages, to pick up where you left off. */
+export async function listRecentPages(limit = 4): Promise<RecentPage[]> {
+  await getCurrentUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("pages")
+    .select("id,title,updated_at,topics!inner(subject_id,subjects!inner(name))")
+    .order("updated_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error("No se han podido cargar los apuntes recientes.");
+
+  return data.map((row) => {
+    const topic = row.topics as unknown as { subject_id: string; subjects: { name: string } };
+    return {
+      id: row.id,
+      title: row.title,
+      updatedAt: row.updated_at,
+      subjectId: topic.subject_id,
+      subjectName: topic.subjects.name,
+    };
+  });
+}
+
 export async function getNotePage(subjectId: string, pageId: string): Promise<NotePage | null> {
   await getCurrentUser();
   const supabase = await createClient();
