@@ -13,10 +13,15 @@ export const metadata: Metadata = {
     template: "%s · Atlas",
   },
   description: "Tu organización personal: tareas, universidad y más, en un solo sitio.",
+  applicationName: "Atlas",
+  // iPhone: opened from the home screen it runs full screen, status bar over the dark background.
+  appleWebApp: { capable: true, title: "Atlas", statusBarStyle: "black-translucent" },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#ffffff",
+  themeColor: "#161826",
+  colorScheme: "dark",
   viewportFit: "cover",
 };
 

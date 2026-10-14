@@ -65,3 +65,9 @@ describe("supabase project URL", async () => {
     expect(() => projectUrl("sb_secret_xxx")).toThrow(/no es una URL válida/);
   });
 });
+
+describe("installable app", () => {
+  it("serves the web manifest without a session", () => {
+    expect(isPublicPath("/manifest.webmanifest")).toBe(true);
+  });
+});
