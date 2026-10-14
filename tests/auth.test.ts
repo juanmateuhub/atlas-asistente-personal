@@ -52,3 +52,16 @@ describe("route access", () => {
     expect(isAuthPage("/auth/callback")).toBe(false);
   });
 });
+
+describe("supabase project URL", async () => {
+  const { projectUrl } = await import("@/lib/supabase/env");
+
+  it("keeps only the origin, even if the REST path was pasted", () => {
+    expect(projectUrl("https://abc123.supabase.co/rest/v1/")).toBe("https://abc123.supabase.co");
+    expect(projectUrl(" https://abc123.supabase.co ")).toBe("https://abc123.supabase.co");
+  });
+
+  it("rejects values that are not URLs", () => {
+    expect(() => projectUrl("sb_secret_xxx")).toThrow(/no es una URL válida/);
+  });
+});

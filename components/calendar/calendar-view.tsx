@@ -29,11 +29,13 @@ export function CalendarView({
   initialDay,
   today,
   items,
+  subjects,
 }: {
   month: MonthKey;
   initialDay: string;
   today: string;
   items: AgendaItem[];
+  subjects: { id: string; name: string }[];
 }) {
   const [selected, setSelected] = useState(initialDay);
   // Remember the month we last showed to slide the grid in the right direction.
@@ -126,7 +128,7 @@ export function CalendarView({
         </ul>
       </section>
 
-      <DayAgenda day={selected} items={byDate.get(selected) ?? []} today={today} />
+      <DayAgenda day={selected} items={byDate.get(selected) ?? []} today={today} subjects={subjects} />
     </div>
   );
 }

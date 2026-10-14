@@ -31,6 +31,10 @@ export async function proxy(request: NextRequest) {
   const signedIn = Boolean(data?.claims);
   const { pathname } = request.nextUrl;
 
+  if (!signedIn && pathname.startsWith("/api/")) {
+    // API clients expect JSON, not a redirect to an HTML page.
+    return NextResponse.json({ error: "Tu sesión ha caducado. Vuelve a entrar." }, { status: 401 });
+  }
   if (!signedIn && !isPublicPath(pathname)) {
     return redirectKeepingCookies(request, response, "/login");
   }

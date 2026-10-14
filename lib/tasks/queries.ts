@@ -48,3 +48,11 @@ function sortByDueAndPriority(tasks: Task[]): Task[] {
     a.dueDate === b.dueDate ? PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] : 0,
   );
 }
+
+/** Open tasks, for the sidebar badge. */
+export async function countPendingTasks(): Promise<number> {
+  await getCurrentUser();
+  const supabase = await createClient();
+  const { count } = await supabase.from("tasks").select("id", { count: "exact", head: true }).neq("status", "hecha");
+  return count ?? 0;
+}

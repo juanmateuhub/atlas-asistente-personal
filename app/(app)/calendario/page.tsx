@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { monthGrid, monthOf, parseDay, parseMonth } from "@/lib/calendar/grid";
 import { listAgenda } from "@/lib/calendar/queries";
 import { todayIn } from "@/lib/tasks/dates";
+import { listSubjectOptions } from "@/lib/university/queries";
 
 export const metadata: Metadata = { title: "Calendario" };
 
@@ -29,7 +30,7 @@ async function Calendar({ searchParams }: Pick<PageProps<"/calendario">, "search
   const day = parseDay(params.dia, fallbackDay);
 
   const weeks = monthGrid(month);
-  const items = await listAgenda(weeks[0][0], weeks[5][6]);
+  const [items, subjects] = await Promise.all([listAgenda(weeks[0][0], weeks[5][6]), listSubjectOptions()]);
 
   return (
     <CalendarView
@@ -37,6 +38,7 @@ async function Calendar({ searchParams }: Pick<PageProps<"/calendario">, "search
       initialDay={monthOf(day) === month ? day : fallbackDay}
       today={today}
       items={items}
+      subjects={subjects}
     />
   );
 }

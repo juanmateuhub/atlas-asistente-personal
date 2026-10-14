@@ -1,107 +1,316 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
-import { CheckSquare } from "lucide-react";
-import { startTransition, useOptimistic } from "react";
-import { toggleTaskDone } from "@/app/(app)/tareas/actions";
-import { EmptyState } from "@/components/ui/empty-state";
-import { dueInfo } from "@/lib/tasks/dates";
-import type { Task, TaskFilter } from "@/lib/tasks/types";
-import { NewTaskForm } from "./new-task-form";
-import { TaskItem } from "./task-item";
+import { ArrowUp, PlusCircle, Sparkle } from "@phosphor-icons/react";
+import { useMemo, useRef, useState, useTransition } from "react";
+import { createTask, toggleTaskDone } from "@/app/(app)/tareas/actions";
+import { FormError } from "@/components/ui/form";
+import { useToast } from "@/components/ui/toast";
+import { relativeDue } from "@/lib/tasks/dates";
+import {
+  FILTERS,
+  PRIORITIES,
+  PRIORITY_LABEL,
+  compareTasks,
+  matchesFilter,
+  type Priority,
+  type Task,
+  type TaskFilter,
+} from "@/lib/tasks/types";
+import { TITLE_MAX } from "@/lib/tasks/validation";
+import { playChime } from "@/lib/ui/sound";
+import { PRIORITY_COLOR, TaskRow, type RowPhase } from "./task-row";
 
-const EMPTY: Record<TaskFilter, { title: string; description: string }> = {
-  pendientes: {
-    title: "Nada pendiente",
-    description: "Añade una tarea arriba para empezar a organizarte.",
-  },
-  hechas: { title: "Aún no has terminado ninguna", description: "Las tareas hechas aparecerán aquí." },
-  todas: { title: "Sin tareas", description: "Añade una tarea arriba para empezar a organizarte." },
+/** Local, short-lived state for a row while it animates or waits for the server. */
+type Override = { done: boolean; phase: RowPhase };
+
+const FILTER_LABEL: Record<TaskFilter, string> = { pendientes: "Pendientes", hechas: "Hechas", todas: "Todas" };
+const PILL_WIDTH = 120;
+/** Timeline from the redesign: check pop → (leave) → settle. */
+const CHECK_MS = 520;
+const LEAVE_MS = 860;
+
+const COMPOSER_SHADOW = {
+  idle: "0 0 0 1px color-mix(in srgb, var(--color-text) 8%, transparent), inset 0 1px 0 color-mix(in srgb, var(--color-text) 6%, transparent), 0 14px 40px rgba(0,0,0,.3)",
+  focus:
+    "0 0 0 1px color-mix(in srgb, var(--color-accent) 70%, transparent), 0 0 0 5px color-mix(in srgb, var(--color-accent) 12%, transparent), 0 0 40px color-mix(in srgb, var(--color-accent) 18%, transparent), 0 20px 50px rgba(0,0,0,.4)",
 };
 
-type OptimisticAction = { type: "add"; task: Task } | { type: "toggle"; id: string; done: boolean };
-
-function reduce(tasks: Task[], action: OptimisticAction): Task[] {
-  switch (action.type) {
-    case "add":
-      return [...tasks, action.task];
-    case "toggle":
-      return tasks.map((t) =>
-        t.id === action.id ? { ...t, status: action.done ? "hecha" : "pendiente" } : t,
-      );
-  }
-}
-
 /**
- * Task list with optimistic updates: toggles and new tasks show instantly, then
- * the server refresh reconciles (and filtered-out rows animate away).
+ * Tareas, Nocturne edition. Data still comes from the server (all tasks) and
+ * changes go through the same server actions; filtering happens here so the
+ * pill slides and finished rows can animate away before they disappear.
  */
-export function TaskBoard({
-  tasks,
-  filter,
-  today,
-  filters,
-}: {
-  tasks: Task[];
-  filter: TaskFilter;
-  today: string;
-  filters: React.ReactNode;
-}) {
-  const [optimisticTasks, apply] = useOptimistic(tasks, reduce);
+export function TaskBoard({ tasks, today, initialFilter }: { tasks: Task[]; today: string; initialFilter: TaskFilter }) {
+  const toast = useToast();
+  const [, startTransition] = useTransition();
+  const [filter, setFilter] = useState<TaskFilter>(initialFilter);
+  const [overrides, setOverrides] = useState<Map<string, Override>>(() => new Map());
+  const [temps, setTemps] = useState<Task[]>([]);
+  // Per-row bookkeeping: an override is dropped once its animation ended AND the server confirmed.
+  const settle = useRef(new Map<string, { anim: boolean; server: boolean }>());
 
-  function toggle(task: Task) {
-    const done = task.status !== "hecha";
+  const [draft, setDraft] = useState("");
+  const [draftPrio, setDraftPrio] = useState<Priority>("media");
+  const [draftDate, setDraftDate] = useState("");
+  const [focused, setFocused] = useState(false);
+  const [error, setError] = useState<string | undefined>();
+  const input = useRef<HTMLInputElement>(null);
+
+  const setOverride = (id: string, value: Override | null) =>
+    setOverrides((m) => {
+      const next = new Map(m);
+      if (value) next.set(id, value);
+      else next.delete(id);
+      return next;
+    });
+
+  const markSettled = (id: string, part: "anim" | "server") => {
+    const s = settle.current.get(id) ?? { anim: false, server: false };
+    s[part] = true;
+    if (s.anim && s.server) {
+      settle.current.delete(id);
+      setOverride(id, null);
+    } else settle.current.set(id, s);
+  };
+
+  const rows = useMemo(() => {
+    const all = [...tasks, ...temps].sort(compareTasks);
+    return all.map((task) => {
+      const o = overrides.get(task.id);
+      return { task, done: o ? o.done : task.status === "hecha", phase: o?.phase ?? null };
+    });
+  }, [tasks, temps, overrides]);
+
+  const counts = {
+    pendientes: rows.filter((r) => !r.done).length,
+    hechas: rows.filter((r) => r.done).length,
+    todas: rows.length,
+  };
+  const visible = rows.filter((r) => matchesFilter(r.done, r.phase !== null, filter));
+
+  function setStatus(task: Task, done: boolean) {
+    settle.current.set(task.id, { anim: false, server: false });
     const fd = new FormData();
     fd.set("id", task.id);
     fd.set("done", String(done));
     startTransition(async () => {
-      apply({ type: "toggle", id: task.id, done });
       await toggleTaskDone(fd);
+      markSettled(task.id, "server");
     });
   }
 
-  const showEmpty = optimisticTasks.length === 0;
+  function toggle(row: (typeof rows)[number]) {
+    if (row.phase || row.task.id.startsWith("tmp-")) return;
+    const { task, done: wasDone } = row;
+    const leaves = filter !== "todas";
+    if (!wasDone) playChime("done");
+
+    setOverride(task.id, { done: wasDone, phase: "check" });
+    setStatus(task, !wasDone);
+    if (leaves) setTimeout(() => setOverride(task.id, { done: wasDone, phase: "leave" }), CHECK_MS);
+    setTimeout(
+      () => {
+        setOverride(task.id, { done: !wasDone, phase: null });
+        markSettled(task.id, "anim");
+        if (!wasDone) toast(`«${task.title}» completada`, () => undo(task));
+      },
+      leaves ? LEAVE_MS : CHECK_MS,
+    );
+  }
+
+  /** Toast "Deshacer": the task comes back as pending, dropping in. */
+  function undo(task: Task) {
+    setOverride(task.id, { done: false, phase: "enter" });
+    setStatus(task, false);
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        setOverride(task.id, { done: false, phase: null });
+        markSettled(task.id, "anim");
+      }),
+    );
+  }
+
+  function addTask() {
+    const title = draft.trim();
+    if (!title) return;
+    setError(undefined);
+    const temp: Task = {
+      id: `tmp-${crypto.randomUUID()}`,
+      title,
+      notes: null,
+      priority: draftPrio,
+      status: "pendiente",
+      dueDate: draftDate || null,
+      completedAt: null,
+      createdAt: new Date().toISOString(),
+    };
+    playChime("add");
+    setTemps((t) => [...t, temp]);
+    setOverride(temp.id, { done: false, phase: "enter" });
+    requestAnimationFrame(() => requestAnimationFrame(() => setOverride(temp.id, null)));
+    if (filter === "hechas") setFilter("pendientes");
+    setDraft("");
+    setDraftDate("");
+
+    const fd = new FormData();
+    fd.set("title", title);
+    fd.set("priority", draftPrio);
+    if (temp.dueDate) fd.set("dueDate", temp.dueDate);
+    startTransition(async () => {
+      const result = await createTask({}, fd);
+      // The refreshed list (with the real row) arrives with this transition.
+      startTransition(() => setTemps((t) => t.filter((x) => x.id !== temp.id)));
+      if (result.error) {
+        setError(result.error);
+        setDraft(title);
+      }
+    });
+  }
+
+  const canAdd = draft.trim().length > 0;
+  const filterIndex = FILTERS.indexOf(filter);
 
   return (
     <>
-      <NewTaskForm
-        onOptimisticAdd={(task) => {
-          // A new task is pending, so it does not belong in the "hechas" view.
-          if (filter !== "hechas") apply({ type: "add", task });
-        }}
-      />
-
-      <section aria-labelledby="task-list-title" className="flex flex-col gap-4">
-        <h2 id="task-list-title" className="sr-only">
-          Lista de tareas
-        </h2>
-        {filters}
-
-        {showEmpty ? (
-          <EmptyState icon={CheckSquare} {...EMPTY[filter]} />
-        ) : (
-          <motion.ul layout className="flex flex-col">
-            <AnimatePresence initial={false} mode="popLayout">
-              {optimisticTasks.map((task) => (
-                <motion.li
-                  key={task.id}
-                  layout
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, x: 24, transition: { duration: 0.16 } }}
-                >
-                  <TaskItem
-                    task={task}
-                    due={task.dueDate ? dueInfo(task.dueDate, today) : null}
-                    pending={task.id.startsWith("tmp-")}
-                    onToggle={() => toggle(task)}
-                  />
-                </motion.li>
-              ))}
-            </AnimatePresence>
-          </motion.ul>
+      {/* Composer */}
+      <div>
+        <div
+          className="flex items-center gap-[6px] rounded-full py-[6px] pr-[6px] pl-5 max-sm:flex-wrap max-sm:rounded-[22px] max-sm:pl-4"
+          style={{
+            background: "color-mix(in srgb, var(--color-surface) 85%, transparent)",
+            backdropFilter: "blur(20px)",
+            boxShadow: focused ? COMPOSER_SHADOW.focus : COMPOSER_SHADOW.idle,
+            transition: "box-shadow .35s",
+          }}
+        >
+          <PlusCircle size={19} color="var(--color-neutral-600)" className="flex-none" />
+          <label htmlFor="new-task" className="sr-only">
+            Nueva tarea
+          </label>
+          <input
+            id="new-task"
+            ref={input}
+            value={draft}
+            maxLength={TITLE_MAX}
+            onChange={(e) => setDraft(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") addTask();
+            }}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            placeholder="Añade una tarea…"
+            autoComplete="off"
+            className="h-11 min-w-[120px] flex-1 border-0 bg-transparent px-[6px] text-[15.5px] text-text outline-none focus-visible:outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => setDraftPrio(PRIORITIES[(PRIORITIES.indexOf(draftPrio) + 2) % 3])}
+            title="Cambiar prioridad"
+            aria-label={`Prioridad ${PRIORITY_LABEL[draftPrio].toLowerCase()}. Pulsa para cambiarla`}
+            className="flex h-[34px] cursor-pointer items-center gap-2 rounded-full border-0 px-[14px] text-[13px] font-medium whitespace-nowrap text-neutral-300 transition-[background,transform] duration-200 hover:bg-[color-mix(in_srgb,var(--color-text)_11%,transparent)] active:scale-[0.94]"
+            style={{ background: "color-mix(in srgb, var(--color-text) 6%, transparent)" }}
+          >
+            <span
+              className="size-[7px] rounded-full"
+              style={{ background: PRIORITY_COLOR[draftPrio], boxShadow: `0 0 8px ${PRIORITY_COLOR[draftPrio]}` }}
+            />
+            {PRIORITY_LABEL[draftPrio]}
+          </button>
+          <label htmlFor="new-task-date" className="sr-only">
+            Fecha límite
+          </label>
+          <input
+            id="new-task-date"
+            type="date"
+            value={draftDate}
+            onChange={(e) => setDraftDate(e.currentTarget.value)}
+            className="h-[34px] cursor-pointer rounded-full border-0 px-3 text-[13px] text-neutral-300 [color-scheme:dark]"
+            style={{ background: "color-mix(in srgb, var(--color-text) 6%, transparent)" }}
+          />
+          <button
+            type="button"
+            onClick={addTask}
+            disabled={!canAdd}
+            title="Añadir"
+            aria-label="Añadir tarea"
+            className="grid size-11 flex-none cursor-pointer place-items-center rounded-full border border-accent text-accent-200 active:scale-[0.88] disabled:cursor-not-allowed"
+            style={{
+              background: "color-mix(in srgb, var(--color-accent) 14%, transparent)",
+              opacity: canAdd ? 1 : 0.45,
+              boxShadow: canAdd ? "0 0 22px color-mix(in srgb, var(--color-accent) 50%, transparent)" : "none",
+              transition: "opacity .2s, box-shadow .3s, transform .2s cubic-bezier(.34,1.8,.5,1)",
+            }}
+          >
+            <ArrowUp size={18} />
+          </button>
+        </div>
+        {error && (
+          <div className="pt-2 pl-5">
+            <FormError message={error} />
+          </div>
         )}
-      </section>
+      </div>
+
+      {/* Filters: segmented control with a sliding pill */}
+      <div className="mt-[36px] mb-[18px] flex">
+        <div
+          role="tablist"
+          aria-label="Filtrar tareas"
+          className="relative flex rounded-full p-1"
+          style={{
+            background: "color-mix(in srgb, var(--color-text) 5%, transparent)",
+            boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--color-text) 5%, transparent)",
+          }}
+        >
+          <div
+            aria-hidden
+            className="absolute top-1 left-1 h-8 rounded-full bg-surface"
+            style={{
+              width: PILL_WIDTH,
+              boxShadow: "0 0 0 1px color-mix(in srgb, var(--color-text) 9%, transparent), 0 4px 14px rgba(0,0,0,.4)",
+              transform: `translateX(${filterIndex * PILL_WIDTH}px)`,
+              transition: "transform .5s cubic-bezier(.34,1.45,.5,1)",
+            }}
+          />
+          {FILTERS.map((f) => (
+            <button
+              key={f}
+              type="button"
+              role="tab"
+              aria-selected={f === filter}
+              onClick={() => setFilter(f)}
+              className="relative flex h-8 cursor-pointer items-center justify-center gap-[7px] border-0 bg-transparent text-[13.5px] font-medium transition-colors duration-[250ms]"
+              style={{ width: PILL_WIDTH, color: f === filter ? "var(--color-text)" : "var(--color-neutral-400)" }}
+            >
+              {FILTER_LABEL[f]}
+              <span className="text-[11.5px] text-neutral-500 tabular-nums">{counts[f]}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* List */}
+      <div className="flex flex-col" role="tabpanel">
+        {visible.map((row) => (
+          <TaskRow
+            key={row.task.id}
+            task={row.task}
+            done={row.done}
+            phase={row.phase}
+            dueLabel={relativeDue(row.task.dueDate, today)}
+            pending={row.task.id.startsWith("tmp-")}
+            onToggle={() => toggle(row)}
+          />
+        ))}
+        {visible.length === 0 && (
+          <div className="flex animate-rise flex-col gap-[10px] py-12">
+            <Sparkle size={26} weight="fill" color="var(--color-accent-300)" />
+            <span className="text-[15px] text-neutral-400">
+              {filter === "hechas" ? "Aún no has completado ninguna tarea." : "Todo hecho. Disfruta del día."}
+            </span>
+          </div>
+        )}
+      </div>
     </>
   );
 }

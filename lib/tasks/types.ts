@@ -65,3 +65,21 @@ export type TaskFilter = (typeof FILTERS)[number];
 export function parseFilter(value: unknown): TaskFilter {
   return (FILTERS as readonly unknown[]).includes(value) ? (value as TaskFilter) : "pendientes";
 }
+
+const RANK: Record<Priority, number> = { alta: 0, media: 1, baja: 2 };
+
+/** Same order as the server list: due date (none last), then priority, then creation. */
+export function compareTasks(a: Task, b: Task): number {
+  const da = a.dueDate ?? "9999-12-31";
+  const db = b.dueDate ?? "9999-12-31";
+  if (da !== db) return da < db ? -1 : 1;
+  if (a.priority !== b.priority) return RANK[a.priority] - RANK[b.priority];
+  return a.createdAt.localeCompare(b.createdAt);
+}
+
+/** Design filter keys → which tasks they show. Rows mid-animation stay visible. */
+export function matchesFilter(done: boolean, animating: boolean, filter: TaskFilter): boolean {
+  if (filter === "todas") return true;
+  if (filter === "hechas") return done || animating;
+  return !done || animating;
+}

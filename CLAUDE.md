@@ -2,7 +2,9 @@ Para cualquier trabajo de interfaz o diseño web, usa la skill apple-ui-skills.
 
 ## Diseño de Atlas
 
-- `apple-ui-skills` define la base visual (tokens en `app/globals.css`): fondo blanco, Inter, acento `#155BD0`, radio 21px. Manda sobre cualquier otra sugerencia estética.
-- El plugin `frontend-design` se usa para criterio y pulido (jerarquía, textos, evitar aspecto genérico), no para cambiar la estética.
-- Animaciones: el usuario las quiere en toda la app, pero cada una responde a una acción (pulsar, completar, abrir, añadir, borrar) más una entrada suave por página (`app/(app)/template.tsx`). Solo `transform`/`opacity`, ≤200ms, ease-out, respetando `prefers-reduced-motion`. Usar la utilidad `pressable` y `motion/react` (`AnimatePresence`, `layoutId`).
+- Base visual: el rediseño **Nocturne** (carpeta `Atlas rediseño Nocturno/`, maqueta `Atlas v2.dc.html`). Sustituye a apple-ui-skills como estética. Colores, rampas, radios, sombras y curvas en `app/globals.css` (copiados de `_ds/…/styles.css`).
+- Al migrar una pantalla, replicar la maqueta exactamente (tamaños, espaciados, radios, sombras, cubic-bezier) sin cambiar la lógica de datos. Iconos: `@phosphor-icons/react`. Fuente: Inter.
+- Microinteracciones: chispas y sonido al completar (`components/tasks/task-check.tsx`, `lib/ui/sound.ts`), salida deslizante de filas, aviso con Deshacer (`components/ui/toast.tsx`), indicadores deslizantes, brillo que sigue al ratón y cielo con estrellas de noche (`components/shell/ambient.tsx`).
+- Los tokens antiguos (`ink`, `body`, `muted`, `line`, `raised`, `sky`) son alias temporales para pantallas aún sin migrar.
+- El plugin `frontend-design` se usa para criterio y pulido, no para cambiar la estética.
 - Revisar la UI con capturas reales antes de darla por buena.

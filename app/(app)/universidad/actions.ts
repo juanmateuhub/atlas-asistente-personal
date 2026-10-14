@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/user";
 import { createClient } from "@/lib/supabase/server";
 import { parseTaskId as parseId } from "@/lib/tasks/validation";
+import { FILES_BUCKET } from "@/lib/university/files";
 import {
   parseDoc,
   parseExamInput,
@@ -51,8 +52,11 @@ export async function deleteSubject(_prev: FormState, fd: FormData): Promise<For
   if (!id) return { error: "Asignatura no válida." };
 
   const supabase = await createClient();
+  // Rows cascade with the subject; the stored files must be removed explicitly.
+  const { data: files } = await supabase.from("subject_files").select("storage_path").eq("subject_id", id);
   const { data, error } = await supabase.from("subjects").delete().eq("id", id).select("id");
   if (error || data.length === 0) return { error: "No se ha podido borrar. Inténtalo de nuevo." };
+  if (files?.length) await supabase.storage.from(FILES_BUCKET).remove(files.map((f) => f.storage_path));
   redirect("/universidad");
 }
 

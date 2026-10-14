@@ -44,3 +44,7 @@ next-env.d.ts
 Hugo_OS_Blueprint_*.pdf
 
 !.env.example
+
+# Material de referencia local (no versionar)
+Captura de pantalla *.png
+Atlas rediseño Nocturno/

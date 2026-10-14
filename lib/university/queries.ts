@@ -1,6 +1,7 @@
 import "server-only";
 import { getCurrentUser } from "@/lib/auth/user";
 import { createClient } from "@/lib/supabase/server";
+import type { FileKind, SubjectFile } from "./files";
 import { parseDoc } from "./validation";
 import {
   EMPTY_DOC,
@@ -77,11 +78,11 @@ export async function listSubjects(today: string): Promise<SubjectSummary[]> {
 
 export async function getSubjectDetail(
   subjectId: string,
-): Promise<{ subject: Subject; topics: Topic[]; exams: Exam[] } | null> {
+): Promise<{ subject: Subject; topics: Topic[]; exams: Exam[]; files: SubjectFile[] } | null> {
   await getCurrentUser();
   const supabase = await createClient();
 
-  const [subjectRes, topicsRes, examsRes] = await Promise.all([
+  const [subjectRes, topicsRes, examsRes, filesRes] = await Promise.all([
     supabase.from("subjects").select("id,name,description").eq("id", subjectId).maybeSingle(),
     supabase
       .from("topics")
@@ -90,8 +91,13 @@ export async function getSubjectDetail(
       .order("position")
       .order("created_at"),
     supabase.from("exams").select(EXAM_COLUMNS).eq("subject_id", subjectId).order("exam_date"),
+    supabase
+      .from("subject_files")
+      .select("id,name,kind,size_bytes,page_count,created_at,has_text")
+      .eq("subject_id", subjectId)
+      .order("created_at", { ascending: false }),
   ]);
-  if (subjectRes.error || topicsRes.error || examsRes.error) {
+  if (subjectRes.error || topicsRes.error || examsRes.error || filesRes.error) {
     throw new Error("No se ha podido cargar la asignatura.");
   }
   if (!subjectRes.data) return null;
@@ -105,7 +111,17 @@ export async function getSubjectDetail(
       .map((p) => ({ id: p.id, title: p.title, updatedAt: p.updated_at })),
   }));
 
-  return { subject: subjectRes.data, topics, exams: examsRes.data.map(toExam) };
+  const files: SubjectFile[] = filesRes.data.map((f) => ({
+    id: f.id,
+    name: f.name,
+    kind: f.kind as FileKind,
+    sizeBytes: f.size_bytes,
+    pageCount: f.page_count,
+    hasText: f.has_text,
+    createdAt: f.created_at,
+  }));
+
+  return { subject: subjectRes.data, topics, exams: examsRes.data.map(toExam), files };
 }
 
 export type RecentPage = { id: string; title: string; updatedAt: string; subjectId: string; subjectName: string };
@@ -163,4 +179,13 @@ export async function getNotePage(subjectId: string, pageId: string): Promise<No
     topic: { id: topic.id, title: topic.title },
     subject: { id: topic.subjects.id, name: topic.subjects.name },
   };
+}
+
+/** id + name of every subject, for pickers (e.g. adding an exam from the calendar). */
+export async function listSubjectOptions(): Promise<{ id: string; name: string }[]> {
+  await getCurrentUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("subjects").select("id,name").order("name");
+  if (error) throw new Error("No se han podido cargar las asignaturas.");
+  return data;
 }

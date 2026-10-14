@@ -39,3 +39,18 @@ export function dueInfo(dueDate: string, today: string): DueInfo {
   const [y, m, d] = dueDate.split("-").map(Number);
   return { label: shortDate.format(new Date(Date.UTC(y, m - 1, d))), tone: "normal" };
 }
+
+const shortDay = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: "UTC" });
+
+/** Due-date wording from the Nocturne redesign: Hoy, Mañana, Ayer, En n días, Hace n días, 30 oct. */
+export function relativeDue(dueDate: string | null, today: string): string {
+  if (!dueDate) return "Sin fecha";
+  const n = daysBetween(today, dueDate);
+  if (n === 0) return "Hoy";
+  if (n === 1) return "Mañana";
+  if (n === -1) return "Ayer";
+  if (n > 1 && n < 7) return `En ${n} días`;
+  if (n < 0) return `Hace ${-n} días`;
+  const [y, m, d] = dueDate.split("-").map(Number);
+  return shortDay.format(new Date(Date.UTC(y, m - 1, d))).replace(".", "");
+}

@@ -30,7 +30,7 @@ export function SubjectFields({ idPrefix, subject }: { idPrefix: string; subject
   );
 }
 
-export function ExamFields({ idPrefix, exam }: { idPrefix: string; exam?: Exam }) {
+export function ExamFields({ idPrefix, exam, defaultDate }: { idPrefix: string; exam?: Exam; defaultDate?: string }) {
   const id = (n: string) => `${idPrefix}-${n}`;
   return (
     <>
@@ -47,7 +47,7 @@ export function ExamFields({ idPrefix, exam }: { idPrefix: string; exam?: Exam }
       </Field>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Fecha" htmlFor={id("date")}>
-          <input id={id("date")} name="date" type="date" required defaultValue={exam?.date} className={inputClass} />
+          <input id={id("date")} name="date" type="date" required defaultValue={exam?.date ?? defaultDate} className={inputClass} />
         </Field>
         <Field label="Hora" htmlFor={id("time")} hint="Opcional">
           <input id={id("time")} name="time" type="time" defaultValue={exam?.time ?? ""} className={inputClass} />

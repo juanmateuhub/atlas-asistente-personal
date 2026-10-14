@@ -1,13 +1,14 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { CalendarClock, CheckSquare, GraduationCap, Pencil, Plus, Trash2 } from "lucide-react";
+import { CalendarClock, CheckSquare, GraduationCap, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { createEvent, deleteEvent, updateEvent } from "@/app/(app)/calendario/actions";
+import { deleteEvent, updateEvent } from "@/app/(app)/calendario/actions";
 import { ActionDialog } from "@/components/ui/action-dialog";
-import { iconButtonClass, primaryButtonClass } from "@/components/ui/form";
+import { iconButtonClass } from "@/components/ui/form";
 import { formatDay } from "@/lib/calendar/grid";
 import type { AgendaItem } from "@/lib/calendar/types";
+import { AddToDay } from "./add-to-day";
 import { EventFields } from "./event-fields";
 
 const KIND_ICON = { event: CalendarClock, task: CheckSquare, exam: GraduationCap } as const;
@@ -20,7 +21,17 @@ function timeLabel(item: AgendaItem) {
   return "Todo el día";
 }
 
-export function DayAgenda({ day, items, today }: { day: string; items: AgendaItem[]; today: string }) {
+export function DayAgenda({
+  day,
+  items,
+  today,
+  subjects,
+}: {
+  day: string;
+  items: AgendaItem[];
+  today: string;
+  subjects: { id: string; name: string }[];
+}) {
   return (
     <section aria-labelledby="agenda-title" className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-4">
@@ -30,20 +41,7 @@ export function DayAgenda({ day, items, today }: { day: string; items: AgendaIte
           </h2>
           {day === today && <span className="text-sm font-medium text-accent">Hoy</span>}
         </div>
-        <ActionDialog
-          title="Nuevo evento"
-          action={createEvent}
-          submitLabel="Crear evento"
-          pendingLabel="Creando…"
-          trigger={(open) => (
-            <button type="button" onClick={open} aria-label="Nuevo evento" className={`${primaryButtonClass} px-3 py-3`}>
-              <Plus aria-hidden className="size-5" />
-            </button>
-          )}
-        >
-          {/* key: reset the form defaults when the selected day changes. */}
-          <EventFields key={day} idPrefix="new-event" defaultDate={day} />
-        </ActionDialog>
+        <AddToDay day={day} subjects={subjects} />
       </div>
 
       <AnimatePresence mode="wait" initial={false}>
@@ -55,7 +53,7 @@ export function DayAgenda({ day, items, today }: { day: string; items: AgendaIte
         >
           {items.length === 0 ? (
             <p className="rounded-atlas bg-line/15 px-5 py-6 text-base text-muted">
-              Nada este día. Usa el botón + para añadir un evento.
+              Nada este día. Usa el botón + para añadir un evento, una tarea o un examen.
             </p>
           ) : (
             <ul className="flex flex-col">

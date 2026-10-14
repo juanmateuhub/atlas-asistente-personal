@@ -95,3 +95,38 @@ describe("mapping", () => {
     expect(parseFilter(undefined)).toBe("pendientes");
   });
 });
+
+describe("Nocturne task helpers", async () => {
+  const { relativeDue } = await import("@/lib/tasks/dates");
+  const { compareTasks, matchesFilter } = await import("@/lib/tasks/types");
+  const task = (id: string, dueDate: string | null, priority: "alta" | "media" | "baja", createdAt = "2026-10-01") =>
+    toTask({ id, title: id, notes: null, priority, status: "pendiente", due_date: dueDate, completed_at: null, created_at: createdAt });
+
+  it("words due dates like the redesign", () => {
+    const today = "2026-10-14";
+    expect(relativeDue(null, today)).toBe("Sin fecha");
+    expect(relativeDue("2026-10-14", today)).toBe("Hoy");
+    expect(relativeDue("2026-10-15", today)).toBe("Mañana");
+    expect(relativeDue("2026-10-13", today)).toBe("Ayer");
+    expect(relativeDue("2026-10-16", today)).toBe("En 2 días");
+    expect(relativeDue("2026-10-09", today)).toBe("Hace 5 días");
+    expect(relativeDue("2026-10-30", today)).toBe("30 oct");
+  });
+
+  it("orders like the server: due date (none last), priority, creation", () => {
+    const list = [
+      task("sin-fecha", null, "alta"),
+      task("tarde", "2026-10-20", "alta"),
+      task("pronto-baja", "2026-10-15", "baja"),
+      task("pronto-alta", "2026-10-15", "alta"),
+    ].sort(compareTasks);
+    expect(list.map((t) => t.id)).toEqual(["pronto-alta", "pronto-baja", "tarde", "sin-fecha"]);
+  });
+
+  it("keeps animating rows visible in every filter", () => {
+    expect(matchesFilter(true, false, "pendientes")).toBe(false);
+    expect(matchesFilter(true, true, "pendientes")).toBe(true);
+    expect(matchesFilter(false, false, "hechas")).toBe(false);
+    expect(matchesFilter(false, false, "todas")).toBe(true);
+  });
+});

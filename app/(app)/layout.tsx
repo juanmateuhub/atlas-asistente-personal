@@ -1,38 +1,53 @@
 import { Suspense } from "react";
+import { Ambient } from "@/components/shell/ambient";
 import { Sidebar, SidebarFrame, TabBar, TabBarFrame } from "@/components/shell/app-nav";
-import { AtlasMark } from "@/components/shell/atlas-mark";
+import { AtlasLogo } from "@/components/brand/atlas-logo";
 import { UserMenu } from "@/components/shell/user-menu";
 import { MotionProvider } from "@/components/ui/motion";
+import { ToastProvider } from "@/components/ui/toast";
+import { countPendingTasks } from "@/lib/tasks/queries";
+
+/** Sidebar with the pending-tasks badge (reads the session: streams in). */
+async function SidebarWithBadge() {
+  const pending = await countPendingTasks();
+  return (
+    <Sidebar
+      pendingCount={pending}
+      footer={
+        <Suspense fallback={<div aria-hidden className="h-[50px]" />}>
+          <UserMenu />
+        </Suspense>
+      }
+    />
+  );
+}
 
 export default function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <MotionProvider>
-      <div className="flex min-h-dvh">
-        <Suspense fallback={<SidebarFrame pathname={null} />}>
-          <Sidebar
-            footer={
-              <Suspense fallback={<div aria-hidden className="h-10" />}>
-                <UserMenu />
+      <ToastProvider>
+        <div className="relative flex min-h-dvh overflow-x-clip bg-bg text-text">
+          <Ambient />
+          <Suspense fallback={<SidebarFrame pathname={null} />}>
+            <SidebarWithBadge />
+          </Suspense>
+          <main className="relative z-[1] min-w-0 flex-1 px-4 pt-[max(env(safe-area-inset-top),16px)] pb-28 md:px-[clamp(28px,6vw,96px)] md:pt-[72px] md:pb-[120px]">
+            <div className="flex items-center justify-between pb-4 md:hidden">
+              <span className="flex items-center gap-[10px] text-[17px] font-medium tracking-[-0.025em]">
+                <AtlasLogo className="size-[26px]" />
+                Atlas
+              </span>
+              <Suspense fallback={<div aria-hidden className="size-[30px]" />}>
+                <UserMenu compact />
               </Suspense>
-            }
-          />
-        </Suspense>
-        <main className="min-w-0 flex-1 px-4 pt-[max(env(safe-area-inset-top),16px)] pb-28 md:px-12 md:pt-12 md:pb-12">
-          <div className="flex items-center justify-between md:hidden">
-            <span className="flex items-center gap-2 text-base font-bold text-ink">
-              <AtlasMark className="size-6" />
-              Atlas
-            </span>
-            <Suspense fallback={<div aria-hidden className="size-10" />}>
-              <UserMenu compact />
-            </Suspense>
-          </div>
-          <div className="mx-auto max-w-4xl pt-4 md:pt-0">{children}</div>
-        </main>
-        <Suspense fallback={<TabBarFrame pathname={null} />}>
-          <TabBar />
-        </Suspense>
-      </div>
+            </div>
+            <div className="mx-auto max-w-[1120px]">{children}</div>
+          </main>
+          <Suspense fallback={<TabBarFrame pathname={null} />}>
+            <TabBar />
+          </Suspense>
+        </div>
+      </ToastProvider>
     </MotionProvider>
   );
 }

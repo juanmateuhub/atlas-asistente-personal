@@ -2,8 +2,10 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { ExamsPanel } from "@/components/university/exams-panel";
+import { FilesPanel } from "@/components/university/files-panel";
 import { SubjectActions } from "@/components/university/subject-actions";
 import { TopicsPanel } from "@/components/university/topics-panel";
+import { getCurrentUser } from "@/lib/auth/user";
 import { todayIn } from "@/lib/tasks/dates";
 import { parseTaskId as parseId } from "@/lib/tasks/validation";
 import { getSubjectDetail } from "@/lib/university/queries";
@@ -19,9 +21,9 @@ export default function SubjectPage({ params }: PageProps<"/universidad/[subject
 async function Subject({ params }: Pick<PageProps<"/universidad/[subjectId]">, "params">) {
   const subjectId = parseId((await params).subjectId);
   if (!subjectId) notFound();
-  const detail = await getSubjectDetail(subjectId);
+  const [user, detail] = await Promise.all([getCurrentUser(), getSubjectDetail(subjectId)]);
   if (!detail) notFound();
-  const { subject, topics, exams } = detail;
+  const { subject, topics, exams, files } = detail;
 
   return (
     <>
@@ -40,7 +42,10 @@ async function Subject({ params }: Pick<PageProps<"/universidad/[subjectId]">, "
       </div>
       <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <TopicsPanel subjectId={subject.id} topics={topics} />
-        <ExamsPanel subjectId={subject.id} exams={exams} today={todayIn(new Date())} />
+        <div className="flex flex-col gap-12">
+          <FilesPanel subjectId={subject.id} userId={user.id} files={files} />
+          <ExamsPanel subjectId={subject.id} exams={exams} today={todayIn(new Date())} />
+        </div>
       </div>
     </>
   );
