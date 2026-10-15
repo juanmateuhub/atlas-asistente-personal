@@ -1,5 +1,5 @@
 /**
- * Read-only Gmail REST helpers. Parsing is kept pure (and tested); the fetchers
+ * Gmail REST helpers (read, plus marking a message as read). Parsing is kept pure (and tested); the fetchers
  * take a short-lived access token obtained server-side.
  */
 
@@ -111,21 +111,58 @@ export function toSummary(m: GmailMessage): MailSummary {
   };
 }
 
-async function call<T>(token: string, path: string): Promise<T> {
-  const res = await fetch(`${API}${path}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
-  if (!res.ok) throw new GmailError(`Gmail ${res.status}`, res.status);
-  return (await res.json()) as T;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Retries what Gmail asks to retry: 429 (too many concurrent requests) and 5xx, with backoff. */
+async function call<T>(token: string, path: string, init?: { method: "POST"; body: unknown }): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(`${API}${path}`, {
+      method: init?.method ?? "GET",
+      headers: { Authorization: `Bearer ${token}`, ...(init && { "Content-Type": "application/json" }) },
+      body: init && JSON.stringify(init.body),
+      cache: "no-store",
+    });
+    if (res.ok) return (await res.json()) as T;
+    const retryable = res.status === 429 || res.status >= 500;
+    if (!retryable || attempt >= 3) throw new GmailError(`Gmail ${res.status}`, res.status);
+    await sleep(300 * 2 ** attempt + Math.random() * 200);
+  }
+}
+
+/** Like Promise.all, but at most `limit` requests in flight: Gmail rejects bursts per user. */
+async function mapLimited<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
 }
 
 /** One page of the inbox, newest first, with the headers needed for the list. */
-export async function listInbox(token: string, pageToken?: string, pageSize = 40) {
-  const params = new URLSearchParams({ labelIds: "INBOX", maxResults: String(pageSize) });
-  if (pageToken) params.set("pageToken", pageToken);
+export function listInbox(token: string, pageToken?: string, pageSize = 40) {
+  return listMessages(token, { labelIds: "INBOX", pageToken, max: pageSize });
+}
+
+/** Gmail search (same syntax as the Gmail search box), newest first. Spam and trash are excluded. */
+export async function searchMessages(token: string, q: string, max = 8): Promise<MailSummary[]> {
+  return (await listMessages(token, { q, max })).messages;
+}
+
+async function listMessages(token: string, opts: { labelIds?: string; q?: string; pageToken?: string; max: number }) {
+  const params = new URLSearchParams({ maxResults: String(opts.max) });
+  if (opts.labelIds) params.set("labelIds", opts.labelIds);
+  if (opts.q) params.set("q", opts.q);
+  if (opts.pageToken) params.set("pageToken", opts.pageToken);
   const page = await call<{ messages?: { id: string }[]; nextPageToken?: string }>(token, `/messages?${params}`);
 
   const meta = "format=metadata&metadataHeaders=From&metadataHeaders=Subject";
-  const messages = await Promise.all(
-    (page.messages ?? []).map((m) => call<GmailMessage>(token, `/messages/${encodeURIComponent(m.id)}?${meta}`)),
+  const messages = await mapLimited(page.messages ?? [], 8, (m) =>
+    call<GmailMessage>(token, `/messages/${encodeURIComponent(m.id)}?${meta}`),
   );
   return { messages: messages.map(toSummary), nextPageToken: page.nextPageToken ?? null };
 }
@@ -133,6 +170,25 @@ export async function listInbox(token: string, pageToken?: string, pageSize = 40
 export async function getMessage(token: string, id: string): Promise<MailMessage> {
   const m = await call<GmailMessage>(token, `/messages/${encodeURIComponent(id)}?format=full`);
   return { ...toSummary(m), ...extractBody(m.payload) };
+}
+
+/** Removes the UNREAD label. A 403 means the account was connected with the old read-only permission. */
+export async function markRead(token: string, id: string): Promise<void> {
+  await call(token, `/messages/${encodeURIComponent(id)}/modify`, { method: "POST", body: { removeLabelIds: ["UNREAD"] } });
+}
+
+/** Plain text of a message for Jax: the text/plain part, or the HTML with tags removed. */
+export function messageText(m: Pick<MailMessage, "html" | "text">): string {
+  if (m.text?.trim()) return m.text.replace(/\s+/g, " ").trim();
+  if (!m.html) return "";
+  return unescapeSnippet(
+    m.html
+      .replace(/<(style|script|head)[\s\S]*?<\/\1>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/g, " "),
+  )
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /** Gmail message ids are hex strings. */

@@ -1,7 +1,10 @@
 import "server-only";
 
-/** Read-only mailbox access + the address, nothing else. */
-export const GMAIL_SCOPES = ["openid", "email", "https://www.googleapis.com/auth/gmail.readonly"];
+/**
+ * Read the mailbox and change its labels (Atlas only removes UNREAD when a message
+ * is opened), plus the address. gmail.modify cannot send mail or delete it for good.
+ */
+export const GMAIL_SCOPES = ["openid", "email", "https://www.googleapis.com/auth/gmail.modify"];
 
 export const STATE_COOKIE = "atlas_mail_oauth_state";
 
@@ -57,7 +60,7 @@ async function tokenRequest(body: Record<string, string>): Promise<TokenResponse
 export async function exchangeCode(code: string, origin: string) {
   const t = await tokenRequest({ code, grant_type: "authorization_code", redirect_uri: redirectUri(origin) });
   if (!t.refresh_token) throw new Error("Google no ha devuelto refresh token");
-  if (!t.scope?.includes("gmail.readonly")) throw new Error("Falta el permiso de lectura de Gmail");
+  if (!t.scope?.includes("gmail.modify")) throw new Error("Falta el permiso de Gmail");
   const payload = JSON.parse(Buffer.from((t.id_token ?? "").split(".")[1] ?? "", "base64url").toString("utf8") || "{}");
   if (typeof payload.email !== "string") throw new Error("Google no ha devuelto el correo");
   return { refreshToken: t.refresh_token, email: payload.email as string };

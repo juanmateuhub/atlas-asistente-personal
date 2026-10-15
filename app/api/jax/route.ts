@@ -2,8 +2,8 @@ import {
   buildDataBlock,
   extractCitations,
   normalizeHistory,
-  noteRefs,
   stripUnknownRefs,
+  sourceRefs,
   systemPrompt,
 } from "@/lib/jax/context";
 import {
@@ -18,6 +18,7 @@ import { applyAction } from "@/lib/jax/apply";
 import { timeIn } from "@/lib/jax/dates";
 import { createGeminiProvider } from "@/lib/jax/providers/gemini";
 import { ProviderError, type ChatTurn, type LLMProvider } from "@/lib/jax/providers/types";
+import { retrieveMail } from "@/lib/jax/mail";
 import { retrieveData } from "@/lib/jax/retrieval";
 import { encodeEvent } from "@/lib/jax/sse";
 import { TOOL_DECLARATIONS, toProposal, type Proposal } from "@/lib/jax/tools";
@@ -129,19 +130,24 @@ export async function POST(request: Request) {
   let history: ChatTurn[];
   let retrieved: Awaited<ReturnType<typeof retrieveData>>;
   try {
-    const [r, conversation] = await Promise.all([
+    const [r, conversation, mail] = await Promise.all([
       retrieveData(supabase, message, todayIn(now), timeIn(now)),
       listConversation(supabase, HISTORY_TURNS),
+      retrieveMail(message),
     ]);
-    retrieved = r;
+    retrieved = { ...r, data: { ...r.data, mail } };
     system = systemPrompt(buildDataBlock(r.data));
     history = normalizeHistory(toTurns(conversation));
   } catch (err) {
     trace.fail("retrieval", err);
     return jsonError(500, "No he podido leer tus datos. Inténtalo de nuevo.");
   }
-  trace.step("retrieval done", { notes: retrieved.data.notes.length, turns: history.length });
-  const available = noteRefs(retrieved.data.notes);
+  trace.step("retrieval done", {
+    notes: retrieved.data.notes.length,
+    mail: retrieved.data.mail ? retrieved.data.mail.status : "skipped",
+    turns: history.length,
+  });
+  const available = sourceRefs(retrieved.data);
 
   // 5. Generate and stream; collect tool calls as proposals; persist only the final answer.
   const stream = new ReadableStream<Uint8Array>({

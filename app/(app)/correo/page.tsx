@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { DisconnectButton } from "@/components/mail/disconnect-button";
 import { FiltersPanel } from "@/components/mail/filters-panel";
 import { FiltersSheet } from "@/components/mail/filters-sheet";
+import { InboxRow } from "@/components/mail/inbox-row";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { matchingFilter } from "@/lib/mail/filters";
@@ -50,7 +51,25 @@ async function Inbox({ searchParams }: Pick<PageProps<"/correo">, "searchParams"
   try {
     page = await listInbox(await getMailAccessToken(account), pageToken);
   } catch (err) {
-    return <Connect notice={err instanceof ReconnectError ? "Google ha caducado el acceso. Vuelve a conectar tu correo." : "No se ha podido leer el correo ahora mismo. Recarga en un momento."} configured reconnect={err instanceof ReconnectError} />;
+    if (err instanceof ReconnectError) {
+      return <Connect notice="Google ha caducado el acceso. Vuelve a conectar tu correo." configured reconnect />;
+    }
+    // Still connected: a temporary Gmail failure must not look like a sign-out.
+    return (
+      <div className="flex max-w-xl flex-col items-start gap-3">
+        <p role="alert" className="m-0 flex items-center gap-2 text-[14px] text-neutral-300">
+          <WarningCircle size={18} color="var(--color-accent-ink)" />
+          Gmail no ha respondido. Tu correo sigue conectado.
+        </p>
+        <Link
+          href="/correo"
+          className="pressable inline-flex h-[40px] items-center gap-2 rounded-full bg-step px-4 text-[14px] font-medium"
+        >
+          <ArrowClockwise size={15} />
+          Reintentar
+        </Link>
+      </div>
+    );
   }
 
   const now = new Date();
@@ -100,32 +119,17 @@ async function Inbox({ searchParams }: Pick<PageProps<"/correo">, "searchParams"
           <ul className="mx-[-14px] flex flex-col">
             {visible.map((m, i) => (
               <li key={m.id} className="animate-pop" style={{ animationDelay: `${Math.min(i, 12) * 0.025}s` }}>
-                <Link
-                  href={`/correo/${m.id}`}
-                  className="pressable flex gap-3 rounded-[14px] p-[14px] transition-[background] duration-200 hover:bg-[color-mix(in_srgb,var(--color-text)_4%,transparent)]"
-                  style={{ opacity: m.hiddenBy ? 0.5 : 1 }}
-                >
-                  <span
-                    aria-hidden
-                    className="mt-[7px] size-[7px] flex-none rounded-full"
-                    style={{
-                      background: m.unread ? "var(--color-accent)" : "transparent",
-                    }}
-                  />
-                  <span className="flex min-w-0 flex-1 flex-col gap-[2px]">
-                    <span className="flex items-baseline gap-3">
-                      <span className={`min-w-0 flex-1 truncate text-[14.5px] ${m.unread ? "font-semibold" : "font-medium text-neutral-300"}`}>
-                        {m.fromName}
-                      </span>
-                      <span className="flex-none text-[12px] text-neutral-500 tabular-nums">{inboxDate(m.date, now)}</span>
-                    </span>
-                    <span className={`truncate text-[14px] ${m.unread ? "text-text" : "text-neutral-300"}`}>{m.subject}</span>
-                    <span className="truncate text-[12.5px] text-neutral-500">
-                      {m.hiddenBy ? `Oculto por «${m.hiddenBy.pattern}»` : m.snippet}
-                    </span>
-                  </span>
-                  {m.unread && <span className="sr-only">Sin leer</span>}
-                </Link>
+                <InboxRow
+                  m={{
+                    id: m.id,
+                    fromName: m.fromName,
+                    subject: m.subject,
+                    snippet: m.snippet,
+                    date: inboxDate(m.date, now),
+                    unread: m.unread,
+                    hiddenBy: m.hiddenBy?.pattern ?? null,
+                  }}
+                />
               </li>
             ))}
           </ul>
@@ -171,7 +175,7 @@ function Connect({ notice, configured, reconnect = false }: { notice?: string; c
       <EmptyState
         icon={<EnvelopeSimple size={20} weight="fill" />}
         title={reconnect ? "Vuelve a conectar tu correo" : "Conecta tu correo de la UJI"}
-        description="Atlas leerá tu bandeja en solo lectura: no puede enviar, borrar ni mover correos. Los avisos automáticos que no te interesan se ocultan con filtros que tú controlas."
+        description="Atlas lee tu bandeja y marca como leídos los correos que abres. No envía ni borra correos. Los avisos automáticos que no te interesan se ocultan con filtros que tú controlas."
       />
       {configured ? (
         // Plain <a>: the route redirects to Google, it is not an app page.

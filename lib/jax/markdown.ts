@@ -1,6 +1,6 @@
 /**
  * Tiny Markdown subset for Jax answers: paragraphs, "- " lists, **bold** and
- * [n1] citation markers. Produces a tree that React renders as text nodes, so
+ * [n1] / [m1] citation markers. Produces a tree that React renders as text nodes, so
  * model output can never inject HTML.
  */
 
@@ -9,7 +9,7 @@ export type Block = { type: "paragraph"; lines: Inline[][] } | { type: "list"; i
 
 export function parseInline(text: string): Inline[] {
   const out: Inline[] = [];
-  const pattern = /\*\*(.+?)\*\*|\[(n\d{1,2})\]/g;
+  const pattern = /\*\*(.+?)\*\*|\[([nm]\d{1,2})\]/g;
   let last = 0;
   for (const m of text.matchAll(pattern)) {
     if (m.index > last) out.push({ type: "text", text: text.slice(last, m.index) });

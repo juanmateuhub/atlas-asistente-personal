@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_FILTERS, matchingFilter, normalize, parseFilterInput, type MailFilter } from "@/lib/mail/filters";
 import { inboxDate } from "@/lib/mail/format";
-import { extractBody, isMessageId, parseFrom, toSummary } from "@/lib/mail/gmail";
+import { extractBody, isMessageId, messageText, parseFrom, toSummary } from "@/lib/mail/gmail";
 
 const defaults: MailFilter[] = DEFAULT_FILTERS.map((f, i) => ({ ...f, id: String(i) }));
 const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64url");
@@ -97,5 +97,12 @@ describe("inboxDate", () => {
     expect(inboxDate("2026-10-15T07:41:00Z", now)).toBe("09:41");
     expect(inboxDate("2026-10-03T07:41:00Z", now)).toBe("3 oct");
     expect(inboxDate("2025-12-24T07:41:00Z", now)).toBe("24/12/25");
+  });
+});
+
+describe("messageText", () => {
+  it("prefers text/plain and strips HTML otherwise", () => {
+    expect(messageText({ text: "Hola\n\n  mundo", html: "<p>x</p>" })).toBe("Hola mundo");
+    expect(messageText({ text: null, html: "<style>p{}</style><p>Hola&nbsp;<b>Juan</b> &amp; co</p>" })).toBe("Hola Juan & co");
   });
 });

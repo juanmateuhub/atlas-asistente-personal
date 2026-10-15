@@ -4,6 +4,7 @@ import {
   extractCitations,
   noteRefs,
   normalizeHistory,
+  sourceRefs,
   stripUnknownRefs,
   systemPrompt,
   type JaxData,
@@ -13,6 +14,7 @@ import { docToText } from "@/lib/jax/doc-text";
 import { parseInline, parseMarkdown } from "@/lib/jax/markdown";
 import { keywords, normalize, searchPages, type SearchablePage } from "@/lib/jax/search";
 import { createSSEParser, encodeEvent } from "@/lib/jax/sse";
+import { mailQuery, wantsMail } from "@/lib/jax/mail-query";
 
 const doc = {
   type: "doc",
@@ -158,5 +160,39 @@ describe("dates", () => {
     expect(addDays("2026-10-30", 3)).toBe("2026-11-02");
     expect(addDays("2026-10-14", -30)).toBe("2026-09-14");
     expect(timeIn(new Date("2026-10-14T14:05:00Z"))).toBe("16:05");
+  });
+});
+
+describe("Jax mail", () => {
+  it("only reads mail when the question talks about it", () => {
+    expect(wantsMail("¿Me ha llegado algún correo de la secretaría?")).toBe(true);
+    expect(wantsMail("¿Qué tareas tengo mañana?")).toBe(false);
+  });
+
+  it("builds an OR Gmail query without mail or generic words", () => {
+    expect(mailQuery("¿Qué dice el último correo sobre la revisión de Redes?")).toBe("{revision redes}");
+    expect(mailQuery("¿Tengo correos nuevos?")).toBe("");
+  });
+
+  it("lists emails with m refs and cites them", () => {
+    const mail = {
+      status: "ok" as const,
+      query: "{redes}",
+      items: [
+        { id: "abc123def", fromName: "Profe", fromAddress: "profe@uji.es", subject: "Revisión", date: "2026-10-14T08:00:00.000Z", unread: true, text: "Es el lunes." },
+      ],
+    };
+    const block = buildDataBlock({ today: "2026-10-15", now: "10:00", tasks: [], exams: [], events: [], subjects: [], notes: [], mail });
+    expect(block).toContain("[m1] De: Profe <profe@uji.es> | Asunto: Revisión | 2026-10-14 10:00 | sin leer\nEs el lunes.");
+    const available = sourceRefs({ notes: [], mail });
+    expect(extractCitations("Es el lunes [m1] [m2].", available)).toEqual([
+      { ref: "m1", pageId: "abc123def", subjectId: "", title: "Revisión", kind: "mail" },
+    ]);
+    expect(stripUnknownRefs("Es el lunes [m1] [m2].", available)).toBe("Es el lunes [m1].");
+  });
+
+  it("says when mail is not connected", () => {
+    const block = buildDataBlock({ today: "2026-10-15", now: "10:00", tasks: [], exams: [], events: [], subjects: [], notes: [], mail: { status: "off" } });
+    expect(block).toContain("CORREO UJI: (no conectado");
   });
 });

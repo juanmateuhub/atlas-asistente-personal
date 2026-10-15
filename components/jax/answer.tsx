@@ -1,11 +1,15 @@
-import { FileText } from "lucide-react";
+import { FileText, Mail } from "lucide-react";
 import Link from "next/link";
 import type { Citation } from "@/lib/jax/context";
 import { parseMarkdown, type Inline } from "@/lib/jax/markdown";
 
-/** Note pages open in the editor; uploaded documents open the file itself. */
+/** Note pages open in the editor; uploaded documents open the file itself; emails open in Correo. */
 const pageHref = (c: Citation) =>
-  c.kind === "file" ? `/api/archivos/${c.pageId}` : `/universidad/${c.subjectId}/paginas/${c.pageId}`;
+  c.kind === "file"
+    ? `/api/archivos/${c.pageId}`
+    : c.kind === "mail"
+      ? `/correo/${c.pageId}`
+      : `/universidad/${c.subjectId}/paginas/${c.pageId}`;
 
 /** Documents are served by an API route (signed URL): open them in a new tab, not via client navigation. */
 function SourceLink({ citation, ...props }: { citation: Citation } & Omit<React.ComponentProps<"a">, "href">) {
@@ -71,7 +75,7 @@ export function Answer({ content, citations }: { content: string; citations: Cit
                 className="pressable inline-flex items-center gap-2 rounded-atlas border border-line px-3 py-1.5 text-xs text-body hover:border-text hover:text-accent"
               >
                 <span className="font-medium tabular-nums text-accent-ink">{i + 1}</span>
-                <FileText aria-hidden className="size-3.5" />
+                {c.kind === "mail" ? <Mail aria-hidden className="size-3.5" /> : <FileText aria-hidden className="size-3.5" />}
                 <span className="max-w-48 truncate">{c.title}</span>
               </SourceLink>
             </li>

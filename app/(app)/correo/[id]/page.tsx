@@ -7,7 +7,7 @@ import { Suspense } from "react";
 import { MailBody } from "@/components/mail/mail-body";
 import { MailToItem } from "@/components/mail/mail-to-item";
 import { gmailUrl, messageDate } from "@/lib/mail/format";
-import { GmailError, getMessage, isMessageId, type MailMessage } from "@/lib/mail/gmail";
+import { GmailError, getMessage, isMessageId, markRead, type MailMessage } from "@/lib/mail/gmail";
 import { ReconnectError } from "@/lib/mail/google";
 import { getMailAccessToken, getMailAccount } from "@/lib/mail/queries";
 import { todayIn } from "@/lib/tasks/dates";
@@ -40,12 +40,24 @@ async function Message({ params }: Pick<PageProps<"/correo/[id]">, "params">) {
   if (!account) redirect("/correo");
 
   let message: MailMessage;
+  let token: string;
   try {
-    message = await getMessage(await getMailAccessToken(account), id);
+    token = await getMailAccessToken(account);
+    message = await getMessage(token, id);
   } catch (err) {
     if (err instanceof ReconnectError) redirect("/correo");
     if (err instanceof GmailError && (err.status === 404 || err.status === 400)) notFound();
     throw err;
+  }
+
+  // Opening it counts as reading it, as in Gmail. 403: connected before Atlas asked for gmail.modify.
+  let needsPermission = false;
+  if (message.unread) {
+    try {
+      await markRead(token, message.id);
+    } catch (err) {
+      needsPermission = err instanceof GmailError && err.status === 403;
+    }
   }
 
   const link = gmailUrl(account.email, message.id);
@@ -85,6 +97,17 @@ async function Message({ params }: Pick<PageProps<"/correo/[id]">, "params">) {
           </a>
         </div>
       </header>
+
+      {needsPermission && (
+        <p className="m-0 rounded-[14px] bg-step px-4 py-3 text-[13.5px] text-neutral-300">
+          Para que Atlas marque los correos como leídos,{" "}
+          {/* Plain <a>: the route redirects to Google. */}
+          <a href="/api/correo/conectar" className="font-medium text-accent-ink underline underline-offset-2">
+            vuelve a conectar tu correo
+          </a>
+          .
+        </p>
+      )}
 
       {message.attachments.length > 0 && (
         <ul className="flex flex-wrap gap-2" aria-label="Adjuntos">
