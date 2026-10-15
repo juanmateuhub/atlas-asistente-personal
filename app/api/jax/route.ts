@@ -70,6 +70,18 @@ function toTurns(conversation: JaxMessage[]): ChatTurn[] {
   }));
 }
 
+/** The current conversation, for the Jax panel that opens from any screen. */
+export async function GET() {
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getClaims();
+  if (!auth?.claims?.sub) return jsonError(401, "Inicia sesión para hablar con Jax.");
+  try {
+    return Response.json({ messages: await listConversation(supabase) });
+  } catch {
+    return jsonError(500, "No se ha podido cargar la conversación.");
+  }
+}
+
 /**
  * Ask Jax. Streams Server-Sent Events:
  *   draft  { delta }                            ephemeral text as it is generated

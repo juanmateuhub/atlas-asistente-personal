@@ -1,20 +1,25 @@
 "use client";
 
+import { ArrowCounterClockwise, ArrowUp, Sparkle, Stop } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowUp, RotateCcw, Square } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { clearConversation } from "@/app/(app)/jax/actions";
 import { ActionDialog } from "@/components/ui/action-dialog";
-import { secondaryButtonClass } from "@/components/ui/form";
 import type { Citation } from "@/lib/jax/context";
 import type { JaxActionView } from "@/lib/jax/conversation";
 import { createSSEParser } from "@/lib/jax/sse";
 import { ActionCards } from "./action-cards";
 import { Answer } from "./answer";
-import { JaxAvatar } from "./jax-avatar";
+import { JaxAvatar, type JaxMood } from "./jax-avatar";
 
-type Message = { id: string; role: "user" | "assistant"; content: string; citations: Citation[]; actions: JaxActionView[] };
+export type JaxChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  citations: Citation[];
+  actions: JaxActionView[];
+};
 
 const SUGGESTIONS = [
   "¿Qué tengo pendiente para hoy?",
@@ -27,20 +32,47 @@ const MAX = 2000;
 /** If the server sends nothing for this long, stop waiting and say so. */
 const SILENCE_TIMEOUT_MS = 60_000;
 
-export function JaxChat({ initialMessages }: { initialMessages: Message[] }) {
+const COMPOSER_SHADOW = {
+  idle: "0 0 0 1px color-mix(in srgb, var(--color-text) 8%, transparent), inset 0 1px 0 color-mix(in srgb, var(--color-text) 6%, transparent), 0 14px 40px rgba(0,0,0,.3)",
+  focus:
+    "0 0 0 1px color-mix(in srgb, var(--color-accent) 70%, transparent), 0 0 0 5px color-mix(in srgb, var(--color-accent) 12%, transparent), 0 0 40px color-mix(in srgb, var(--color-accent) 18%, transparent), 0 20px 50px rgba(0,0,0,.4)",
+};
+
+/**
+ * The Jax conversation. "page" is the full /jax screen (composer pinned to the
+ * viewport bottom); "panel" fills the dropdown opened from the top-right avatar
+ * (its own scroll area, composer at the bottom of the panel).
+ */
+export function JaxChat({
+  initialMessages,
+  variant = "page",
+  onMood,
+}: {
+  initialMessages: JaxChatMessage[];
+  variant?: "page" | "panel";
+  /** Lets the launcher avatar react while Jax thinks or speaks. */
+  onMood?: (mood: JaxMood) => void;
+}) {
+  const panel = variant === "panel";
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [input, setInput] = useState("");
+  const [focused, setFocused] = useState(false);
   const [, startTransition] = useTransition();
   const router = useRouter();
   const abort = useRef<AbortController | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
   const streaming = draft !== null;
+  const mood: JaxMood = streaming ? (draft ? "speaking" : "thinking") : "idle";
+
+  useEffect(() => onMood?.(mood), [mood, onMood]);
 
   // Keep the newest content in view while the answer streams in.
   useEffect(() => {
-    bottom.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+    if (scroller.current) scroller.current.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
+    else bottom.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [messages.length, draft]);
 
   async function ask(question: string) {
@@ -107,155 +139,211 @@ export function JaxChat({ initialMessages }: { initialMessages: Message[] }) {
     }
   }
 
-  const mood = streaming ? (draft ? "speaking" : "thinking") : "idle";
+  const conversation = (
+    <div className={`flex flex-col gap-6 ${panel ? "" : "flex-1"}`} aria-live="polite">
+      {messages.length === 0 && !streaming && (
+        <div className="flex animate-rise flex-col items-start gap-5 py-2">
+          <div className="flex flex-col gap-2">
+            <h2 className={`m-0 tracking-[-0.015em] ${panel ? "text-[17px]" : "text-[20px]"}`}>
+              Pregúntame por tu día, tus exámenes o tus apuntes
+            </h2>
+            <p className="m-0 max-w-xl text-[14px] leading-[1.55] text-neutral-400">
+              Leo tus tareas, exámenes, eventos y apuntes, y puedo crear o editar cosas por ti. Cada cambio se puede
+              deshacer. La conversación se borra a los 7 días.
+            </p>
+          </div>
+          <ul className={`grid w-full grid-cols-1 gap-2 ${panel ? "" : "sm:grid-cols-2"}`}>
+            {SUGGESTIONS.map((s, i) => (
+              <li key={s} className="animate-pop" style={{ animationDelay: `${i * 0.05}s` }}>
+                <button
+                  type="button"
+                  onClick={() => void ask(s)}
+                  className="flex w-full cursor-pointer items-center gap-[10px] rounded-[14px] bg-surface px-4 py-3 text-left text-[14px] text-neutral-300 transition-[background,color,scale] duration-200 hover:bg-[color-mix(in_srgb,var(--color-surface)_70%,var(--color-accent-900))] hover:text-text active:scale-[0.98]"
+                  style={{ boxShadow: "0 0 0 1px color-mix(in srgb, var(--color-text) 6%, transparent)" }}
+                >
+                  <Sparkle size={15} weight="fill" color="var(--color-accent-300)" className="flex-none" />
+                  {s}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <AnimatePresence initial={false}>
+        {messages.map((m) => (
+          <motion.div
+            key={m.id}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={m.role === "user" ? "flex justify-end" : "flex gap-3"}
+          >
+            {m.role === "user" ? (
+              <p
+                className="m-0 max-w-[85%] rounded-[18px] rounded-br-[6px] px-4 py-[10px] text-[15px] whitespace-pre-wrap text-accent-100"
+                style={{
+                  background: "color-mix(in srgb, var(--color-accent) 22%, var(--color-surface))",
+                  boxShadow:
+                    "inset 0 1px 0 color-mix(in srgb, var(--color-text) 8%, transparent), 0 0 0 1px color-mix(in srgb, var(--color-accent) 30%, transparent)",
+                }}
+              >
+                {m.content}
+              </p>
+            ) : (
+              <>
+                <JaxAvatar className="mt-0.5 size-8 flex-none" />
+                <div className="min-w-0 flex-1 text-[15px] leading-relaxed text-neutral-200">
+                  <Answer content={m.content} citations={m.citations} />
+                  {m.actions.length > 0 && <ActionCards actions={m.actions} />}
+                </div>
+              </>
+            )}
+          </motion.div>
+        ))}
+      </AnimatePresence>
+
+      {streaming && (
+        <div className="flex gap-3">
+          <JaxAvatar mood={draft ? "speaking" : "thinking"} className="mt-0.5 size-8 flex-none" />
+          <div className="min-w-0 flex-1 text-[15px] leading-relaxed text-neutral-200">
+            {draft ? <Answer content={draft} citations={[]} /> : <Thinking />}
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <p role="alert" className="m-0 animate-fade rounded-[14px] bg-surface px-4 py-3 text-[14px] text-[#f0a3b0]">
+          {error}
+        </p>
+      )}
+      <div ref={bottom} />
+    </div>
+  );
+
+  const composer = (
+    <div className="flex flex-col gap-2">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void ask(input);
+        }}
+        className="flex items-end gap-[6px] rounded-[24px] py-[6px] pr-[6px] pl-4"
+        style={{
+          background: "color-mix(in srgb, var(--color-surface) 85%, transparent)",
+          backdropFilter: "blur(20px)",
+          boxShadow: focused ? COMPOSER_SHADOW.focus : COMPOSER_SHADOW.idle,
+          transition: "box-shadow .35s",
+        }}
+      >
+        <label htmlFor={`jax-input-${variant}`} className="sr-only">
+          Pregunta para Jax
+        </label>
+        <textarea
+          id={`jax-input-${variant}`}
+          value={input}
+          onChange={(e) => setInput(e.currentTarget.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              void ask(input);
+            }
+          }}
+          rows={1}
+          maxLength={MAX}
+          placeholder="Pregunta a Jax…"
+          className="max-h-40 min-h-11 flex-1 resize-none border-0 bg-transparent py-[11px] text-[15.5px] text-text outline-none focus-visible:outline-none [field-sizing:content]"
+        />
+        {streaming ? (
+          <button
+            type="button"
+            onClick={() => abort.current?.abort()}
+            aria-label="Detener respuesta"
+            className="grid size-11 flex-none cursor-pointer place-items-center rounded-full bg-neutral-800 text-neutral-200 transition-[scale] duration-200 active:scale-[0.88]"
+          >
+            <Stop size={16} weight="fill" />
+          </button>
+        ) : (
+          <button
+            type="submit"
+            disabled={!input.trim()}
+            aria-label="Enviar"
+            className="grid size-11 flex-none cursor-pointer place-items-center rounded-full border border-accent text-accent-200 active:scale-[0.88] disabled:cursor-not-allowed"
+            style={{
+              background: "color-mix(in srgb, var(--color-accent) 14%, transparent)",
+              opacity: input.trim() ? 1 : 0.45,
+              boxShadow: input.trim() ? "0 0 22px color-mix(in srgb, var(--color-accent) 50%, transparent)" : "none",
+              transition: "opacity .2s, box-shadow .3s, scale .2s cubic-bezier(.34,1.8,.5,1)",
+            }}
+          >
+            <ArrowUp size={18} />
+          </button>
+        )}
+      </form>
+      <div className="flex min-h-[30px] items-center justify-between gap-3 px-2">
+        <p className="m-0 text-[12px] text-neutral-500">Jax puede equivocarse.</p>
+        {messages.length > 0 && !streaming && (
+          <ActionDialog
+            title="¿Empezar una conversación nueva?"
+            action={async () => {
+              const result = await clearConversation();
+              if (result.ok) startTransition(() => setMessages([]));
+              return result;
+            }}
+            submitLabel="Borrar conversación"
+            pendingLabel="Borrando…"
+            danger
+            trigger={(open) => (
+              <button
+                type="button"
+                onClick={open}
+                className="inline-flex flex-none items-center gap-[6px] rounded-full px-3 py-[5px] text-[12.5px] font-medium whitespace-nowrap text-neutral-400 transition-colors hover:bg-[color-mix(in_srgb,var(--color-text)_7%,transparent)] hover:text-neutral-200"
+              >
+                <ArrowCounterClockwise size={14} />
+                Nueva conversación
+              </button>
+            )}
+          >
+            <p className="m-0 text-[14px] text-neutral-300">
+              Se borrarán todos los mensajes de esta conversación. No se puede deshacer.
+            </p>
+          </ActionDialog>
+        )}
+      </div>
+    </div>
+  );
+
+  if (panel) {
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-2 pb-4">
+          {conversation}
+        </div>
+        <div className="px-3 pt-1 pb-2">{composer}</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex min-h-[calc(100dvh-96px)] flex-col gap-8">
+    // -mb cancels <main>'s bottom padding: the composer itself reaches the page end, so
+    // scrolling stops at the last message instead of leaving empty space under the composer.
+    <div className="-mb-28 flex min-h-[calc(100dvh-96px)] animate-rise flex-col gap-8 md:-mb-[120px]">
       <header className="flex items-center gap-4 md:gap-6">
-        <JaxAvatar mood={mood} detail="full" className="size-24 md:size-32" />
-        <div className="flex min-w-0 flex-col gap-1">
-          <h1 className="text-title font-bold md:text-display">Jax</h1>
-          <p className="text-base text-muted md:text-lead md:font-medium">Tu asistente: conoce tu agenda y tus apuntes.</p>
+        <JaxAvatar mood={mood} detail="full" className="size-24 flex-none md:size-32" />
+        <div className="flex min-w-0 flex-col gap-2">
+          <h1 className="m-0 text-[clamp(44px,6vw,68px)] leading-[1.02] tracking-[-0.04em]">Jax</h1>
+          <p className="m-0 text-[17px] tracking-[-0.012em] text-neutral-400 md:text-[21px]">
+            Tu asistente: conoce tu agenda y tus apuntes.
+          </p>
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col gap-6" aria-live="polite">
-        {messages.length === 0 && !streaming && (
-          <div className="flex animate-enter flex-col items-start gap-6 py-2">
-            <div className="flex flex-col gap-2">
-              <h2 className="text-lead font-medium">Pregúntame por tu día, tus exámenes o tus apuntes</h2>
-              <p className="max-w-xl text-base text-muted">
-                Leo tus tareas, exámenes, eventos y apuntes para responderte, y puedo hacer cambios por ti: crear o editar tareas, eventos, exámenes y apuntes. Cada cambio se puede deshacer. La conversación se borra a los 7 días.
-              </p>
-            </div>
-            <ul className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
-              {SUGGESTIONS.map((s) => (
-                <li key={s}>
-                  <button
-                    type="button"
-                    onClick={() => void ask(s)}
-                    className="pressable w-full rounded-atlas border border-line px-4 py-3 text-left text-sm text-body hover:border-accent hover:text-ink"
-                  >
-                    {s}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+      {conversation}
 
-        <AnimatePresence initial={false}>
-          {messages.map((m) => (
-            <motion.div
-              key={m.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={m.role === "user" ? "flex justify-end" : "flex gap-3"}
-            >
-              {m.role === "user" ? (
-                <p className="max-w-[85%] whitespace-pre-wrap rounded-atlas bg-accent px-4 py-3 text-base text-white">
-                  {m.content}
-                </p>
-              ) : (
-                <>
-                  <JaxAvatar className="mt-0.5 size-8" />
-                  <div className="min-w-0 flex-1 text-base leading-relaxed text-body">
-                    <Answer content={m.content} citations={m.citations} />
-                    {m.actions.length > 0 && <ActionCards actions={m.actions} />}
-                  </div>
-                </>
-              )}
-            </motion.div>
-          ))}
-        </AnimatePresence>
-
-        {streaming && (
-          <div className="flex gap-3">
-            <JaxAvatar mood={draft ? "speaking" : "thinking"} className="mt-0.5 size-8" />
-            <div className="min-w-0 flex-1 text-base leading-relaxed text-body">
-              {draft ? <Answer content={draft} citations={[]} /> : <Thinking />}
-            </div>
-          </div>
-        )}
-
-        {error && (
-          <p role="alert" className="animate-enter rounded-atlas bg-line/20 px-4 py-3 text-sm text-ink">
-            {error}
-          </p>
-        )}
-        <div ref={bottom} />
-      </div>
-
-      <div className="sticky bottom-24 flex flex-col gap-2 bg-surface/90 pt-2 pb-2 backdrop-blur-sm md:bottom-0">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void ask(input);
-          }}
-          className="flex items-end gap-2 rounded-atlas border border-line p-2 focus-within:border-accent"
-        >
-          <label htmlFor="jax-input" className="sr-only">
-            Pregunta para Jax
-          </label>
-          <textarea
-            id="jax-input"
-            value={input}
-            onChange={(e) => setInput(e.currentTarget.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault();
-                void ask(input);
-              }
-            }}
-            rows={1}
-            maxLength={MAX}
-            placeholder="Pregunta a Jax…"
-            className="max-h-40 min-h-11 flex-1 resize-none bg-transparent px-3 py-2.5 text-base text-ink placeholder:text-muted focus-visible:outline-none [field-sizing:content]"
-          />
-          {streaming ? (
-            <button
-              type="button"
-              onClick={() => abort.current?.abort()}
-              aria-label="Detener respuesta"
-              className="pressable flex size-11 shrink-0 items-center justify-center rounded-full bg-ink text-white"
-            >
-              <Square aria-hidden className="size-4 fill-current" />
-            </button>
-          ) : (
-            <button
-              type="submit"
-              disabled={!input.trim()}
-              aria-label="Enviar"
-              className="pressable flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-white hover:bg-raised"
-            >
-              <ArrowUp aria-hidden className="size-5" />
-            </button>
-          )}
-        </form>
-        <div className="flex items-center justify-between gap-4 px-2">
-          <p className="text-xs text-muted">Jax puede equivocarse. Comprueba lo importante.</p>
-          {messages.length > 0 && !streaming && (
-            <ActionDialog
-              title="¿Empezar una conversación nueva?"
-              action={async () => {
-                const result = await clearConversation();
-                if (result.ok) startTransition(() => setMessages([]));
-                return result;
-              }}
-              submitLabel="Borrar conversación"
-              pendingLabel="Borrando…"
-              danger
-              trigger={(open) => (
-                <button type="button" onClick={open} className={`${secondaryButtonClass} inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-3 py-1.5 text-xs`}>
-                  <RotateCcw aria-hidden className="size-3.5" />
-                  Nueva conversación
-                </button>
-              )}
-            >
-              <p className="text-base">Se borrarán todos los mensajes de esta conversación. No se puede deshacer.</p>
-            </ActionDialog>
-          )}
-        </div>
+      {/* Pinned to the viewport bottom; on mobile its padding clears the 60px tab bar, with no gap. */}
+      <div className="sticky bottom-0 -mx-4 bg-[linear-gradient(to_bottom,transparent,var(--color-bg)_28px)] px-4 pt-6 pb-[calc(68px+env(safe-area-inset-bottom))] md:mx-0 md:px-0 md:pb-6">
+        {composer}
       </div>
     </div>
   );

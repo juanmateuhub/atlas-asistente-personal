@@ -12,12 +12,14 @@ export const metadata: Metadata = { title: "Calendario" };
 
 export default function CalendarioPage({ searchParams }: PageProps<"/calendario">) {
   return (
-    <>
-      <PageHeader title="Calendario" lead="Eventos, entregas y exámenes en un solo sitio." />
+    <div className="animate-rise">
+      <div className="mb-12">
+        <PageHeader title="Calendario" lead="Eventos, entregas y exámenes en un solo sitio." />
+      </div>
       <Suspense fallback={<Skeleton />}>
         <Calendar searchParams={searchParams} />
       </Suspense>
-    </>
+    </div>
   );
 }
 
@@ -45,9 +47,9 @@ async function Calendar({ searchParams }: Pick<PageProps<"/calendario">, "search
 
 function Skeleton() {
   return (
-    <div aria-hidden className="grid grid-cols-1 gap-12 lg:grid-cols-[3fr_2fr]">
-      <div className="h-[28rem] animate-skeleton rounded-atlas bg-line/20" />
-      <div className="h-48 animate-skeleton rounded-atlas bg-line/20" />
+    <div aria-hidden className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,1.6fr)_minmax(260px,1fr)]">
+      <div className="h-[480px] animate-skeleton rounded-[20px] bg-surface/60" />
+      <div className="h-48 animate-skeleton rounded-[18px] bg-surface/60" />
     </div>
   );
 }

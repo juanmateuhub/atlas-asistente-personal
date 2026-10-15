@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { Ambient } from "@/components/shell/ambient";
 import { Sidebar, SidebarFrame, TabBar, TabBarFrame } from "@/components/shell/app-nav";
 import { AtlasLogo } from "@/components/brand/atlas-logo";
+import { JaxLauncher } from "@/components/jax/jax-launcher";
 import { UserMenu } from "@/components/shell/user-menu";
 import { MotionProvider } from "@/components/ui/motion";
 import { ToastProvider } from "@/components/ui/toast";
@@ -26,13 +27,14 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <MotionProvider>
       <ToastProvider>
-        <div className="relative flex min-h-dvh overflow-x-clip bg-bg text-text">
+        <div className="relative flex min-h-dvh overflow-clip bg-bg text-text">
           <Ambient />
           <Suspense fallback={<SidebarFrame pathname={null} />}>
             <SidebarWithBadge />
           </Suspense>
           <main className="relative z-[1] min-w-0 flex-1 px-4 pt-[max(env(safe-area-inset-top),16px)] pb-28 md:px-[clamp(28px,6vw,96px)] md:pt-[72px] md:pb-[120px]">
-            <div className="flex items-center justify-between pb-4 md:hidden">
+            {/* pr: room for the fixed Jax avatar (JaxLauncher) at the top right. */}
+            <div className="flex items-center justify-between pr-[52px] pb-4 md:hidden">
               <span className="flex items-center gap-[10px] text-[17px] font-medium tracking-[-0.025em]">
                 <AtlasLogo className="size-[26px]" />
                 Atlas
@@ -45,6 +47,9 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
           </main>
           <Suspense fallback={<TabBarFrame pathname={null} />}>
             <TabBar />
+          </Suspense>
+          <Suspense fallback={null}>
+            <JaxLauncher />
           </Suspense>
         </div>
       </ToastProvider>

@@ -46,7 +46,7 @@ export function AddToDay({ day, subjects }: { day: string; subjects: { id: strin
           onClick={open}
           title="Añadir al día"
           aria-label="Añadir evento, tarea o examen"
-          className="grid size-[42px] cursor-pointer place-items-center rounded-full border border-accent text-accent-200 transition-[transform,background] duration-200 hover:rotate-90 hover:bg-[color-mix(in_srgb,var(--color-accent)_22%,transparent)] active:scale-[0.88]"
+          className="grid size-[42px] cursor-pointer place-items-center rounded-full border border-accent text-accent-200 transition-[rotate,scale,background] duration-200 hover:rotate-90 hover:bg-[color-mix(in_srgb,var(--color-accent)_22%,transparent)] active:scale-[0.88]"
           style={{
             background: "color-mix(in srgb, var(--color-accent) 12%, transparent)",
             boxShadow: "0 0 20px color-mix(in srgb, var(--color-accent) 30%, transparent)",

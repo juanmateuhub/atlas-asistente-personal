@@ -24,7 +24,6 @@ import { PRIORITY_COLOR, TaskRow, type RowPhase } from "./task-row";
 type Override = { done: boolean; phase: RowPhase };
 
 const FILTER_LABEL: Record<TaskFilter, string> = { pendientes: "Pendientes", hechas: "Hechas", todas: "Todas" };
-const PILL_WIDTH = 120;
 /** Timeline from the redesign: check pop → (leave) → settle. */
 const CHECK_MS = 520;
 const LEAVE_MS = 860;
@@ -207,7 +206,7 @@ export function TaskBoard({ tasks, today, initialFilter }: { tasks: Task[]; toda
             onClick={() => setDraftPrio(PRIORITIES[(PRIORITIES.indexOf(draftPrio) + 2) % 3])}
             title="Cambiar prioridad"
             aria-label={`Prioridad ${PRIORITY_LABEL[draftPrio].toLowerCase()}. Pulsa para cambiarla`}
-            className="flex h-[34px] cursor-pointer items-center gap-2 rounded-full border-0 px-[14px] text-[13px] font-medium whitespace-nowrap text-neutral-300 transition-[background,transform] duration-200 hover:bg-[color-mix(in_srgb,var(--color-text)_11%,transparent)] active:scale-[0.94]"
+            className="flex h-[34px] cursor-pointer items-center gap-2 rounded-full border-0 px-[14px] text-[13px] font-medium whitespace-nowrap text-neutral-300 transition-[background,scale] duration-200 hover:bg-[color-mix(in_srgb,var(--color-text)_11%,transparent)] active:scale-[0.94]"
             style={{ background: "color-mix(in srgb, var(--color-text) 6%, transparent)" }}
           >
             <span
@@ -238,7 +237,7 @@ export function TaskBoard({ tasks, today, initialFilter }: { tasks: Task[]; toda
               background: "color-mix(in srgb, var(--color-accent) 14%, transparent)",
               opacity: canAdd ? 1 : 0.45,
               boxShadow: canAdd ? "0 0 22px color-mix(in srgb, var(--color-accent) 50%, transparent)" : "none",
-              transition: "opacity .2s, box-shadow .3s, transform .2s cubic-bezier(.34,1.8,.5,1)",
+              transition: "opacity .2s, box-shadow .3s, scale .2s cubic-bezier(.34,1.8,.5,1)",
             }}
           >
             <ArrowUp size={18} />
@@ -256,7 +255,8 @@ export function TaskBoard({ tasks, today, initialFilter }: { tasks: Task[]; toda
         <div
           role="tablist"
           aria-label="Filtrar tareas"
-          className="relative flex rounded-full p-1"
+          // --pill: 120px like the redesign; narrower on phones so the three tabs fit 360px.
+          className="relative flex rounded-full p-1 [--pill:104px] sm:[--pill:120px]"
           style={{
             background: "color-mix(in srgb, var(--color-text) 5%, transparent)",
             boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--color-text) 5%, transparent)",
@@ -266,9 +266,9 @@ export function TaskBoard({ tasks, today, initialFilter }: { tasks: Task[]; toda
             aria-hidden
             className="absolute top-1 left-1 h-8 rounded-full bg-surface"
             style={{
-              width: PILL_WIDTH,
+              width: "var(--pill)",
               boxShadow: "0 0 0 1px color-mix(in srgb, var(--color-text) 9%, transparent), 0 4px 14px rgba(0,0,0,.4)",
-              transform: `translateX(${filterIndex * PILL_WIDTH}px)`,
+              transform: `translateX(calc(${filterIndex} * var(--pill)))`,
               transition: "transform .5s cubic-bezier(.34,1.45,.5,1)",
             }}
           />
@@ -280,7 +280,7 @@ export function TaskBoard({ tasks, today, initialFilter }: { tasks: Task[]; toda
               aria-selected={f === filter}
               onClick={() => setFilter(f)}
               className="relative flex h-8 cursor-pointer items-center justify-center gap-[7px] border-0 bg-transparent text-[13.5px] font-medium transition-colors duration-[250ms]"
-              style={{ width: PILL_WIDTH, color: f === filter ? "var(--color-text)" : "var(--color-neutral-400)" }}
+              style={{ width: "var(--pill)", color: f === filter ? "var(--color-text)" : "var(--color-neutral-400)" }}
             >
               {FILTER_LABEL[f]}
               <span className="text-[11.5px] text-neutral-500 tabular-nums">{counts[f]}</span>

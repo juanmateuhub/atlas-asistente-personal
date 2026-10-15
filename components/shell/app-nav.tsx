@@ -41,7 +41,7 @@ export function SidebarFrame({ pathname, footer, pendingCount = 0 }: Props & { p
                 key={href}
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className="flex h-10 items-center gap-3 rounded-[11px] px-3 text-[14px] font-medium transition-[background,color,transform] duration-[250ms,250ms,150ms] hover:bg-[color-mix(in_srgb,var(--color-text)_6%,transparent)] active:scale-[0.97]"
+                className="flex h-10 items-center gap-3 rounded-[11px] px-3 text-[14px] font-medium transition-[background,color,scale] duration-[250ms,250ms,150ms] hover:bg-[color-mix(in_srgb,var(--color-text)_6%,transparent)] active:scale-[0.97]"
                 style={{
                   background: active ? "color-mix(in srgb, var(--color-text) 8%, transparent)" : undefined,
                   color: active ? "var(--color-text)" : "var(--color-neutral-400)",
@@ -96,18 +96,18 @@ export function TabBarFrame({ pathname }: { pathname: string | null }) {
       }}
     >
       <ul className="flex">
-        {navItems.map(({ href, label, icon: Icon }) => {
+        {navItems.filter((item) => !item.desktopOnly).map(({ href, label, short, icon: Icon }) => {
           const active = pathname !== null && isActive(pathname, href);
           return (
             <li key={href} className="flex-1">
               <Link
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className="flex flex-col items-center gap-1 py-2 text-[11px] font-medium transition-transform duration-150 active:scale-[0.94]"
+                className="flex flex-col items-center gap-1 py-2 text-[11px] font-medium transition-[scale] duration-150 active:scale-[0.94]"
                 style={{ color: active ? "var(--color-text)" : "var(--color-neutral-500)" }}
               >
                 <Icon size={22} weight={active ? "fill" : "regular"} color={active ? "var(--color-accent)" : undefined} />
-                {label}
+                {short ?? label}
               </Link>
             </li>
           );

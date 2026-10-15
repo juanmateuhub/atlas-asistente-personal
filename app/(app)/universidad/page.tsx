@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
-import { BookOpen } from "lucide-react";
+import { ArrowUpRight, BookOpen } from "@phosphor-icons/react/ssr";
 import { Suspense } from "react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { Spotlight } from "@/components/ui/spotlight";
+import { spotGradient } from "@/lib/ui/spot";
 import { ExamRow } from "@/components/university/exam-row";
 import { NewSubjectButton } from "@/components/university/new-subject-button";
 import { todayIn } from "@/lib/tasks/dates";
@@ -13,19 +15,20 @@ import { listSubjects, listUpcomingExams } from "@/lib/university/queries";
 
 export const metadata: Metadata = { title: "Universidad" };
 
+const CARD_SHADOW =
+  "inset 0 1px 0 color-mix(in srgb, var(--color-text) 8%, transparent), 0 0 0 1px color-mix(in srgb, var(--color-text) 6%, transparent), 0 20px 50px rgba(0,0,0,.35)";
+
 export default function UniversidadPage() {
   return (
-    <>
-      <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+    <div className="animate-rise">
+      <div className="mb-[52px] flex flex-wrap items-end justify-between gap-6">
         <PageHeader title="Universidad" lead="Asignaturas, temas y apuntes." />
-        <div className="shrink-0">
-          <NewSubjectButton />
-        </div>
+        <NewSubjectButton />
       </div>
       <Suspense fallback={<Skeleton />}>
         <Overview />
       </Suspense>
-    </>
+    </div>
   );
 }
 
@@ -38,7 +41,7 @@ async function Overview() {
   if (subjects.length === 0) {
     return (
       <EmptyState
-        icon={BookOpen}
+        icon={<BookOpen size={20} weight="fill" />}
         title="Empieza por tu primera asignatura"
         description="Crea una asignatura y organiza dentro sus temas, apuntes y exámenes."
       />
@@ -47,15 +50,68 @@ async function Overview() {
 
   return (
     <div className="flex flex-col gap-12">
+      <section aria-labelledby="subjects">
+        <h2 id="subjects" className="m-0 mb-4 text-[20px] tracking-[-0.015em]">
+          Asignaturas
+        </h2>
+        <ul className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr))]">
+          {subjects.map((s, i) => (
+            <li key={s.id} className="animate-pop" style={{ animationDelay: `${i * 0.04}s` }}>
+              <Spotlight
+                href={`/universidad/${s.id}`}
+                className="relative flex h-full flex-col gap-7 rounded-[20px] p-[22px] hover:-translate-y-[3px] active:scale-[0.98]"
+                style={{
+                  background: `${spotGradient(280, 14)}, linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 95%, transparent), color-mix(in srgb, var(--color-surface) 60%, transparent))`,
+                  boxShadow: CARD_SHADOW,
+                  transition: "translate .35s cubic-bezier(.34,1.5,.5,1), scale .35s cubic-bezier(.34,1.5,.5,1), box-shadow .3s",
+                }}
+              >
+                <span className="flex items-center justify-between">
+                  <span
+                    aria-hidden
+                    className="grid size-[52px] place-items-center rounded-[16px] text-[22px] font-medium tracking-[-0.02em] text-accent-200"
+                    style={{
+                      background: "radial-gradient(circle at 30% 20%, var(--color-accent-700), var(--color-accent-900) 70%)",
+                      boxShadow:
+                        "0 0 0 1px color-mix(in srgb, var(--color-accent) 35%, transparent), 0 8px 24px color-mix(in srgb, var(--color-accent) 22%, transparent)",
+                    }}
+                  >
+                    {s.name.charAt(0).toUpperCase()}
+                  </span>
+                  <ArrowUpRight size={16} color="var(--color-neutral-600)" />
+                </span>
+                <span className="flex min-w-0 flex-col gap-[3px]">
+                  <span className="truncate text-[17px] font-medium tracking-[-0.01em]">{s.name}</span>
+                  <span className="flex flex-wrap gap-x-2 text-[13px] text-neutral-500">
+                    <span>{s.topicCount === 1 ? "1 tema" : `${s.topicCount} temas`}</span>
+                    {s.nextExam && (
+                      <>
+                        <span aria-hidden>·</span>
+                        <span className="text-accent-300">
+                          Examen {examCountdown(s.nextExam.date, today).toLowerCase()}
+                        </span>
+                      </>
+                    )}
+                  </span>
+                  {s.description && (
+                    <span className="mt-1 line-clamp-2 text-[13px] leading-[1.45] text-neutral-500">{s.description}</span>
+                  )}
+                </span>
+              </Spotlight>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       {exams.length > 0 && (
-        <section aria-labelledby="upcoming-exams" className="flex flex-col gap-3">
-          <h2 id="upcoming-exams" className="text-lead font-medium">
+        <section aria-labelledby="upcoming-exams">
+          <h2 id="upcoming-exams" className="m-0 mb-3 text-[20px] tracking-[-0.015em]">
             Próximos exámenes
           </h2>
-          <ul className="grid grid-cols-1 gap-1 md:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-x-8 md:grid-cols-2">
             {exams.map((exam) => (
               <li key={exam.id}>
-                <Link href={`/universidad/${exam.subjectId}`} className="pressable block rounded-atlas">
+                <Link href={`/universidad/${exam.subjectId}`} className="pressable block">
                   <ExamRow exam={exam} today={today} subtitle={exam.subjectName} />
                 </Link>
               </li>
@@ -63,50 +119,15 @@ async function Overview() {
           </ul>
         </section>
       )}
-
-      <section aria-labelledby="subjects" className="flex flex-col gap-3">
-        <h2 id="subjects" className="text-lead font-medium">
-          Asignaturas
-        </h2>
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {subjects.map((s) => (
-            <li key={s.id}>
-              <Link
-                href={`/universidad/${s.id}`}
-                className="pressable flex h-full items-start gap-4 rounded-atlas border border-line p-5 hover:border-accent"
-              >
-                <span
-                  aria-hidden
-                  className="flex size-12 shrink-0 items-center justify-center rounded-full bg-line/30 text-lead font-bold text-accent"
-                >
-                  {s.name.charAt(0).toUpperCase()}
-                </span>
-                <span className="flex min-w-0 flex-col gap-1">
-                  <span className="truncate text-base font-medium text-ink">{s.name}</span>
-                  <span className="flex flex-wrap gap-x-3 text-xs text-muted">
-                    <span>{s.topicCount === 1 ? "1 tema" : `${s.topicCount} temas`}</span>
-                    {s.nextExam && (
-                      <span className="font-medium text-accent">
-                        Examen {examCountdown(s.nextExam.date, today).toLowerCase()}
-                      </span>
-                    )}
-                  </span>
-                  {s.description && <span className="line-clamp-2 text-sm text-muted">{s.description}</span>}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
     </div>
   );
 }
 
 function Skeleton() {
   return (
-    <div aria-hidden className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="h-24 animate-skeleton rounded-atlas bg-line/20" />
+    <div aria-hidden className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr))]">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="h-[168px] animate-skeleton rounded-[20px] bg-surface/60" />
       ))}
     </div>
   );

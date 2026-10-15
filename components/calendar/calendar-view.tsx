@@ -1,10 +1,8 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { iconButtonClass, secondaryButtonClass } from "@/components/ui/form";
 import {
   WEEKDAYS,
   WEEKDAY_NAMES,
@@ -16,13 +14,11 @@ import {
   type MonthKey,
 } from "@/lib/calendar/grid";
 import { groupByDate, type AgendaItem } from "@/lib/calendar/types";
-import { DayAgenda } from "./day-agenda";
+import { DayAgenda, KIND_COLOR } from "./day-agenda";
 
-const MARK = {
-  exam: "bg-accent",
-  event: "bg-sky",
-  task: "bg-line",
-} as const;
+const ROW_H = 66;
+const navButtonClass =
+  "pressable grid size-[34px] place-items-center rounded-full text-neutral-400 transition-colors hover:bg-[color-mix(in_srgb,var(--color-text)_7%,transparent)] hover:text-neutral-200";
 
 export function CalendarView({
   month,
@@ -38,97 +34,129 @@ export function CalendarView({
   subjects: { id: string; name: string }[];
 }) {
   const [selected, setSelected] = useState(initialDay);
-  // Remember the month we last showed to slide the grid in the right direction.
-  const [shown, setShown] = useState({ month, direction: 0 });
-  if (shown.month !== month) {
-    setShown({ month, direction: month > shown.month ? 1 : -1 });
+  const [shownMonth, setShownMonth] = useState(month);
+  if (shownMonth !== month) {
+    setShownMonth(month);
     setSelected(initialDay);
   }
 
   const weeks = useMemo(() => monthGrid(month), [month]);
+  const days = weeks.flat();
   const byDate = useMemo(() => groupByDate(items), [items]);
   const prev = shiftMonth(month, -1);
   const next = shiftMonth(month, 1);
   const href = (m: MonthKey) => (m === monthOf(today) ? "/calendario" : `/calendario?mes=${m}`);
+  const selIndex = days.indexOf(selected);
 
   return (
-    <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-      <section aria-labelledby="month-title" className="flex flex-col gap-4">
-        <div className="flex items-center justify-between gap-4">
-          <h2 id="month-title" aria-live="polite" className="text-lead font-medium">
+    <div className="grid grid-cols-1 items-start gap-12 lg:grid-cols-[minmax(0,1.6fr)_minmax(260px,1fr)]">
+      <section aria-labelledby="month-title" className="flex min-w-0 flex-col gap-[18px]">
+        <div className="flex items-center justify-between">
+          <h2
+            id="month-title"
+            aria-live="polite"
+            className="m-0 text-[clamp(20px,2.2vw,26px)] tracking-[-0.025em] whitespace-nowrap"
+          >
             {formatMonth(month)}
           </h2>
-          <div className="flex items-center gap-1">
-            {month !== monthOf(today) && (
-              <Link href="/calendario" scroll={false} className={`${secondaryButtonClass} mr-2 px-4 py-2 text-sm`}>
-                Hoy
-              </Link>
-            )}
-            <Link href={href(prev)} scroll={false} aria-label={`Ir a ${formatMonth(prev)}`} className={iconButtonClass}>
-              <ChevronLeft aria-hidden className="size-5" />
+          <div className="flex gap-1">
+            <Link href={href(prev)} scroll={false} aria-label={`Ir a ${formatMonth(prev)}`} className={navButtonClass}>
+              <CaretLeft size={16} />
             </Link>
-            <Link href={href(next)} scroll={false} aria-label={`Ir a ${formatMonth(next)}`} className={iconButtonClass}>
-              <ChevronRight aria-hidden className="size-5" />
+            <Link href={href(next)} scroll={false} aria-label={`Ir a ${formatMonth(next)}`} className={navButtonClass}>
+              <CaretRight size={16} />
             </Link>
           </div>
         </div>
 
-        <div role="grid" aria-labelledby="month-title" className="flex flex-col gap-1 overflow-hidden">
-          <div role="row" className="grid grid-cols-7 gap-1">
+        <div role="grid" aria-labelledby="month-title">
+          <div role="row" className="grid grid-cols-7">
             {WEEKDAYS.map((d, i) => (
-              <span key={d} role="columnheader" aria-label={WEEKDAY_NAMES[i]} className="py-2 text-center text-xs font-medium text-muted">
+              <span
+                key={d}
+                role="columnheader"
+                aria-label={WEEKDAY_NAMES[i]}
+                className="pb-2 text-center text-[11px] font-medium tracking-[0.08em] text-neutral-600"
+              >
                 {d}
               </span>
             ))}
           </div>
 
-          <AnimatePresence mode="popLayout" initial={false} custom={shown.direction}>
-            <motion.div
-              key={month}
-              custom={shown.direction}
-              variants={{
-                enter: (dir: number) => ({ opacity: 0, x: dir * 32 }),
-                center: { opacity: 1, x: 0 },
-                exit: (dir: number) => ({ opacity: 0, x: dir * -32, transition: { duration: 0.12 } }),
+          {/* key: the new month fades in; the selector then slides between days. */}
+          <div key={month} className="relative grid animate-fade grid-cols-7" style={{ gridAutoRows: ROW_H }}>
+            <div
+              aria-hidden
+              className="pointer-events-none absolute p-[5px]"
+              style={{
+                width: "calc(100% / 7)",
+                height: ROW_H,
+                left: `calc(${selIndex % 7} * 100% / 7)`,
+                top: Math.floor(Math.max(selIndex, 0) / 7) * ROW_H,
+                opacity: selIndex < 0 ? 0 : 1,
+                transition:
+                  "left .5s cubic-bezier(.34,1.35,.5,1), top .5s cubic-bezier(.34,1.35,.5,1), opacity .2s",
               }}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              className="flex flex-col gap-1"
             >
-              {weeks.map((week) => (
-                <div key={week[0]} role="row" className="grid grid-cols-7 gap-1">
-                  {week.map((date) => (
-                    <DayCell
-                      key={date}
-                      date={date}
-                      inMonth={monthOf(date) === month}
-                      isToday={date === today}
-                      isSelected={date === selected}
-                      items={byDate.get(date) ?? []}
-                      onSelect={() => setSelected(date)}
-                    />
-                  ))}
-                </div>
-              ))}
-            </motion.div>
-          </AnimatePresence>
+              <div
+                className="size-full rounded-[16px] bg-surface"
+                style={{
+                  boxShadow:
+                    "0 0 0 1px color-mix(in srgb, var(--color-text) 9%, transparent), inset 0 1px 0 color-mix(in srgb, var(--color-text) 7%, transparent), 0 10px 26px rgba(0,0,0,.45)",
+                }}
+              />
+            </div>
+            {weeks.map((week) => (
+              <div key={week[0]} role="row" className="contents">
+                {week.map((date) => (
+                  <DayCell
+                    key={date}
+                    date={date}
+                    inMonth={monthOf(date) === month}
+                    isToday={date === today}
+                    isSelected={date === selected}
+                    items={byDate.get(date) ?? []}
+                    onSelect={() => setSelected(date)}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
 
-        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted" aria-label="Leyenda">
-          <li className="flex items-center gap-2">
-            <span aria-hidden className={`size-2 rounded-full ${MARK.exam}`} /> Examen
+        <ul className="flex gap-[18px] pt-[6px] text-[12.5px] text-neutral-500" aria-label="Leyenda">
+          <li className="flex items-center gap-[7px]">
+            <span
+              aria-hidden
+              className="size-[7px] rounded-full"
+              style={{ background: KIND_COLOR.exam, boxShadow: "0 0 8px var(--color-accent)" }}
+            />
+            Examen
           </li>
-          <li className="flex items-center gap-2">
-            <span aria-hidden className={`size-2 rounded-full ${MARK.event}`} /> Evento
+          <li className="flex items-center gap-[7px]">
+            <span aria-hidden className="size-[7px] rounded-full" style={{ background: KIND_COLOR.event }} />
+            Evento
           </li>
-          <li className="flex items-center gap-2">
-            <span aria-hidden className={`size-2 rounded-full ${MARK.task}`} /> Tarea
+          <li className="flex items-center gap-[7px]">
+            <span aria-hidden className="size-[7px] rounded-full" style={{ background: KIND_COLOR.task }} />
+            Tarea
           </li>
         </ul>
       </section>
 
-      <DayAgenda day={selected} items={byDate.get(selected) ?? []} today={today} subjects={subjects} />
+      <DayAgenda
+        day={selected}
+        items={byDate.get(selected) ?? []}
+        today={today}
+        subjects={subjects}
+        goToday={
+          selected === today
+            ? null
+            : monthOf(today) === month
+              ? { onClick: () => setSelected(today) }
+              : { href: "/calendario" }
+        }
+      />
     </div>
   );
 }
@@ -150,6 +178,8 @@ function DayCell({
 }) {
   const dayNumber = Number(date.slice(8));
   const label = `${formatDay(date)}${items.length ? `, ${items.length} ${items.length === 1 ? "elemento" : "elementos"}` : ""}`;
+  // One dot per kind present that day; open tasks only.
+  const kinds = [...new Set(items.filter((i) => i.kind !== "task" || !i.done).map((i) => i.kind))];
 
   return (
     <button
@@ -158,25 +188,27 @@ function DayCell({
       aria-selected={isSelected}
       aria-label={label}
       onClick={onSelect}
-      className={`pressable relative flex aspect-square flex-col items-center justify-start gap-1 rounded-atlas pt-2 md:aspect-auto md:h-16 ${
-        inMonth ? "text-ink" : "text-muted/60"
-      } ${isSelected ? "" : "hover:bg-line/20"}`}
+      className="relative flex cursor-pointer flex-col items-center justify-center gap-[5px] rounded-[16px] border-0 bg-transparent active:scale-90"
+      style={{ transition: "scale .2s cubic-bezier(.34,1.8,.5,1)" }}
     >
-      {isSelected && (
-        <motion.span layoutId="calendar-selected" aria-hidden className="absolute inset-0 rounded-atlas bg-line/30" />
-      )}
       <span
-        className={`relative flex size-7 items-center justify-center rounded-full text-sm tabular-nums ${
-          isToday ? "bg-accent font-bold text-white" : ""
-        }`}
+        className="grid size-8 place-items-center rounded-full text-[14.5px] tabular-nums"
+        style={{
+          fontWeight: isToday || isSelected ? 500 : 400,
+          color: isToday ? "var(--color-accent-100)" : inMonth ? "var(--color-neutral-200)" : "var(--color-neutral-700)",
+          background: isToday
+            ? "radial-gradient(circle at 50% 30%, var(--color-accent-600), var(--color-accent-800))"
+            : "transparent",
+          boxShadow: isToday
+            ? "0 0 0 1px var(--color-accent-400), 0 0 18px color-mix(in srgb, var(--color-accent) 55%, transparent)"
+            : "none",
+        }}
       >
         {dayNumber}
       </span>
-
-      {/* Dots by kind; titles live in the day agenda next to the grid. */}
-      <span aria-hidden className="relative flex gap-0.5">
-        {items.slice(0, 3).map((item) => (
-          <span key={`${item.kind}-${item.id}`} className={`size-1.5 rounded-full ${MARK[item.kind]}`} />
+      <span aria-hidden className="flex h-[5px] gap-[3px]">
+        {kinds.map((k) => (
+          <span key={k} className="size-[5px] rounded-full" style={{ background: KIND_COLOR[k] }} />
         ))}
       </span>
     </button>

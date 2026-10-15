@@ -82,7 +82,8 @@ describe("context", () => {
 
   it("numbers notes for citation and lists the user's data", () => {
     const block = buildDataBlock(data);
-    expect(block).toContain("HOY: 2026-10-14 (hora en Madrid: 16:30)");
+    expect(block).toContain("HOY: miércoles 2026-10-14 (hora en Madrid: 16:30)");
+    expect(block).toContain("PRÓXIMOS DÍAS: jueves 2026-10-15, viernes 2026-10-16,");
     expect(block).toContain("{t1} Entregar práctica | vence 2026-10-15 | prioridad alta");
     expect(block).toContain("{s1} Redes: {tp1} Tema 1");
     expect(block).toContain("[n1] Redes > Tema 3 > TCP");
