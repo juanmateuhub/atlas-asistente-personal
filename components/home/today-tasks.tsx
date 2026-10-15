@@ -97,7 +97,7 @@ export function TodayTasks({ tasks, today, empty }: { tasks: Task[]; today: stri
               />
               <div className="flex min-w-0 flex-col gap-[2px]">
                 <span
-                  className="truncate text-[15px] font-medium transition-colors duration-300"
+                  className="truncate text-[15.5px] font-semibold transition-colors duration-300"
                   style={{
                     color: checked ? "var(--color-neutral-500)" : "var(--color-text)",
                     textDecorationLine: checked ? "line-through" : "none",

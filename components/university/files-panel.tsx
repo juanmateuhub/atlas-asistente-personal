@@ -91,7 +91,7 @@ export function FilesPanel({ subjectId, userId, files }: { subjectId: string; us
           <button
             type="button"
             onClick={() => input.current?.click()}
-            className="pressable inline-flex items-center gap-2 rounded-atlas bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-raised"
+            className="pressable inline-flex items-center gap-2 rounded-atlas bg-accent px-4 py-2 text-sm font-medium text-on-accent hover:bg-accent-500"
           >
             <Upload aria-hidden className="size-4" />
             Subir archivos
@@ -148,7 +148,7 @@ export function FilesPanel({ subjectId, userId, files }: { subjectId: string; us
               {u.error ? (
                 <FileWarning aria-hidden className="size-5 shrink-0 text-red-700" />
               ) : (
-                <Loader2 aria-hidden className="size-5 shrink-0 animate-spin text-accent motion-reduce:animate-none" />
+                <Loader2 aria-hidden className="size-5 shrink-0 animate-spin text-accent-ink motion-reduce:animate-none" />
               )}
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-sm text-ink">{u.name}</span>
@@ -182,7 +182,7 @@ export function FilesPanel({ subjectId, userId, files }: { subjectId: string; us
                 rel="noopener noreferrer"
                 className="flex min-w-0 flex-1 items-center gap-3"
               >
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-atlas bg-line/25 text-accent">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-atlas bg-line/25 text-accent-ink">
                   <FileText aria-hidden className="size-5" />
                 </span>
                 <span className="flex min-w-0 flex-col">

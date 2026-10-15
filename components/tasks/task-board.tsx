@@ -28,10 +28,10 @@ const FILTER_LABEL: Record<TaskFilter, string> = { pendientes: "Pendientes", hec
 const CHECK_MS = 520;
 const LEAVE_MS = 860;
 
+// Flat white composer; focus draws an ink ring (no glow).
 const COMPOSER_SHADOW = {
-  idle: "0 0 0 1px color-mix(in srgb, var(--color-text) 8%, transparent), inset 0 1px 0 color-mix(in srgb, var(--color-text) 6%, transparent), 0 14px 40px rgba(0,0,0,.3)",
-  focus:
-    "0 0 0 1px color-mix(in srgb, var(--color-accent) 70%, transparent), 0 0 0 5px color-mix(in srgb, var(--color-accent) 12%, transparent), 0 0 40px color-mix(in srgb, var(--color-accent) 18%, transparent), 0 20px 50px rgba(0,0,0,.4)",
+  idle: "none",
+  focus: "0 0 0 2px var(--color-text)",
 };
 
 /**
@@ -177,10 +177,9 @@ export function TaskBoard({ tasks, today, initialFilter }: { tasks: Task[]; toda
         <div
           className="flex items-center gap-[6px] rounded-full py-[6px] pr-[6px] pl-4 max-sm:flex-wrap max-sm:rounded-[22px] max-sm:pl-3"
           style={{
-            background: "color-mix(in srgb, var(--color-surface) 85%, transparent)",
-            backdropFilter: "blur(20px)",
+            background: "var(--color-surface)",
             boxShadow: focused ? COMPOSER_SHADOW.focus : COMPOSER_SHADOW.idle,
-            transition: "box-shadow .35s",
+            transition: "box-shadow .2s",
           }}
         >
           <label htmlFor="new-task" className="sr-only">
@@ -206,12 +205,12 @@ export function TaskBoard({ tasks, today, initialFilter }: { tasks: Task[]; toda
             onClick={() => setDraftPrio(PRIORITIES[(PRIORITIES.indexOf(draftPrio) + 2) % 3])}
             title="Cambiar prioridad"
             aria-label={`Prioridad ${PRIORITY_LABEL[draftPrio].toLowerCase()}. Pulsa para cambiarla`}
-            className="flex h-[34px] cursor-pointer items-center gap-2 rounded-full border-0 px-[14px] text-[13px] font-medium whitespace-nowrap text-neutral-300 transition-[background,scale] duration-200 hover:bg-[color-mix(in_srgb,var(--color-text)_11%,transparent)] active:scale-[0.94]"
-            style={{ background: "color-mix(in srgb, var(--color-text) 6%, transparent)" }}
+            className="flex h-[34px] cursor-pointer items-center gap-2 rounded-full border-0 px-[14px] text-[13px] font-medium whitespace-nowrap text-neutral-300 transition-[background,scale] duration-200 hover:bg-neutral-800 active:scale-[0.94]"
+            style={{ background: "var(--color-step)" }}
           >
             <span
               className="size-[7px] rounded-full"
-              style={{ background: PRIORITY_COLOR[draftPrio], boxShadow: `0 0 8px ${PRIORITY_COLOR[draftPrio]}` }}
+              style={{ background: PRIORITY_COLOR[draftPrio] }}
             />
             {PRIORITY_LABEL[draftPrio]}
           </button>
@@ -223,8 +222,8 @@ export function TaskBoard({ tasks, today, initialFilter }: { tasks: Task[]; toda
             type="date"
             value={draftDate}
             onChange={(e) => setDraftDate(e.currentTarget.value)}
-            className="h-[34px] cursor-pointer rounded-full border-0 px-3 text-[13px] text-neutral-300 [color-scheme:dark]"
-            style={{ background: "color-mix(in srgb, var(--color-text) 6%, transparent)" }}
+            className="h-[34px] cursor-pointer rounded-full border-0 px-3 text-[13px] text-neutral-300"
+            style={{ background: "var(--color-step)" }}
           />
           <button
             type="button"
@@ -232,12 +231,11 @@ export function TaskBoard({ tasks, today, initialFilter }: { tasks: Task[]; toda
             disabled={!canAdd}
             title="Añadir"
             aria-label="Añadir tarea"
-            className="grid size-11 flex-none cursor-pointer place-items-center rounded-full border border-accent text-accent-200 active:scale-[0.88] disabled:cursor-not-allowed"
+            className="grid size-11 flex-none cursor-pointer place-items-center rounded-full active:scale-[0.88] disabled:cursor-not-allowed disabled:opacity-100"
             style={{
-              background: "color-mix(in srgb, var(--color-accent) 14%, transparent)",
-              opacity: canAdd ? 1 : 0.45,
-              boxShadow: canAdd ? "0 0 22px color-mix(in srgb, var(--color-accent) 50%, transparent)" : "none",
-              transition: "opacity .2s, box-shadow .3s, scale .2s cubic-bezier(.34,1.8,.5,1)",
+              background: canAdd ? "var(--color-accent)" : "var(--color-step)",
+              color: canAdd ? "var(--color-on-accent)" : "var(--color-neutral-600)",
+              transition: "background .2s, color .2s, scale .2s cubic-bezier(.34,1.8,.5,1)",
             }}
           >
             <ArrowUp size={18} />
@@ -257,17 +255,13 @@ export function TaskBoard({ tasks, today, initialFilter }: { tasks: Task[]; toda
           aria-label="Filtrar tareas"
           // --pill: 120px like the redesign; narrower on phones so the three tabs fit 360px.
           className="relative flex rounded-full p-1 [--pill:104px] sm:[--pill:120px]"
-          style={{
-            background: "color-mix(in srgb, var(--color-text) 5%, transparent)",
-            boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--color-text) 5%, transparent)",
-          }}
+          style={{ background: "var(--color-step)" }}
         >
           <div
             aria-hidden
-            className="absolute top-1 left-1 h-8 rounded-full bg-surface"
+            className="absolute top-1 left-1 h-8 rounded-full bg-text"
             style={{
               width: "var(--pill)",
-              boxShadow: "0 0 0 1px color-mix(in srgb, var(--color-text) 9%, transparent), 0 4px 14px rgba(0,0,0,.4)",
               transform: `translateX(calc(${filterIndex} * var(--pill)))`,
               transition: "transform .5s cubic-bezier(.34,1.45,.5,1)",
             }}
@@ -280,10 +274,10 @@ export function TaskBoard({ tasks, today, initialFilter }: { tasks: Task[]; toda
               aria-selected={f === filter}
               onClick={() => setFilter(f)}
               className="relative flex h-8 cursor-pointer items-center justify-center gap-[7px] border-0 bg-transparent text-[13.5px] font-medium transition-colors duration-[250ms]"
-              style={{ width: "var(--pill)", color: f === filter ? "var(--color-text)" : "var(--color-neutral-400)" }}
+              style={{ width: "var(--pill)", color: f === filter ? "var(--color-bg)" : "var(--color-neutral-400)" }}
             >
               {FILTER_LABEL[f]}
-              <span className="text-[11.5px] text-neutral-500 tabular-nums">{counts[f]}</span>
+              <span className="text-[11.5px] tabular-nums opacity-60">{counts[f]}</span>
             </button>
           ))}
         </div>
@@ -304,7 +298,7 @@ export function TaskBoard({ tasks, today, initialFilter }: { tasks: Task[]; toda
         ))}
         {visible.length === 0 && (
           <div className="flex animate-rise flex-col gap-[10px] py-12">
-            <Sparkle size={26} weight="fill" color="var(--color-accent-300)" />
+            <Sparkle size={26} weight="fill" color="var(--color-accent)" />
             <span className="text-[15px] text-neutral-400">
               {filter === "hechas" ? "Aún no has completado ninguna tarea." : "Todo hecho. Disfruta del día."}
             </span>

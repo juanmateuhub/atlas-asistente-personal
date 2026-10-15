@@ -28,20 +28,10 @@ export function FiltersPanel({
   return (
     <section
       aria-labelledby={bare ? undefined : "filters-title"}
-      className={`flex flex-col gap-4 ${bare ? "" : "rounded-[20px] p-[22px]"}`}
-      style={
-        bare
-          ? undefined
-          : {
-              background:
-                "linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 92%, transparent), color-mix(in srgb, var(--color-surface) 55%, transparent))",
-              boxShadow:
-                "inset 0 1px 0 color-mix(in srgb, var(--color-text) 8%, transparent), 0 0 0 1px color-mix(in srgb, var(--color-text) 5%, transparent), 0 24px 60px rgba(0,0,0,.38)",
-            }
-      }
+      className={`flex flex-col gap-4 ${bare ? "" : "rounded-[22px] bg-surface p-[22px]"}`}
     >
       <div className={bare ? "hidden" : "flex items-center gap-3"}>
-        <Funnel size={18} weight="fill" color="var(--color-accent-300)" />
+        <Funnel size={18} weight="fill" color="var(--color-text)" />
         <h2 id="filters-title" className="m-0 flex-1 text-[17px] tracking-[-0.01em]">
           Filtros de basura
         </h2>
@@ -58,7 +48,7 @@ export function FiltersPanel({
           <li
             key={f.id}
             className="flex items-center gap-3 rounded-[12px] py-2 pr-1 pl-3"
-            style={{ background: "color-mix(in srgb, var(--color-text) 4%, transparent)" }}
+            style={{ background: "var(--color-step)" }}
           >
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="truncate text-[14px] font-medium">{f.pattern}</span>
@@ -107,8 +97,7 @@ export function FiltersPanel({
             type="submit"
             disabled={pending}
             aria-label="Añadir filtro"
-            className="pressable grid size-11 flex-none place-items-center rounded-full border border-accent text-accent-200"
-            style={{ background: "color-mix(in srgb, var(--color-accent) 14%, transparent)" }}
+            className="pressable grid size-11 flex-none place-items-center rounded-full bg-accent text-on-accent transition-[background,scale] hover:bg-accent-500"
           >
             <Plus size={18} />
           </button>

@@ -65,7 +65,7 @@ export function InlineCreate({
             <button
               type="submit"
               disabled={pending}
-              className="pressable shrink-0 rounded-atlas bg-accent px-4 text-sm font-medium text-white hover:bg-raised"
+              className="pressable shrink-0 rounded-atlas bg-accent px-4 text-sm font-medium text-on-accent hover:bg-accent-500"
             >
               {pending ? "Creando…" : "Crear"}
             </button>
@@ -78,7 +78,7 @@ export function InlineCreate({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, transition: { duration: 0.08 } }}
-            className="pressable inline-flex items-center gap-2 self-start rounded-atlas px-3 py-2 text-sm font-medium text-accent hover:bg-line/20"
+            className="pressable inline-flex items-center gap-2 self-start rounded-atlas px-3 py-2 text-sm font-medium text-accent-ink hover:bg-line/20"
           >
             <Plus aria-hidden className="size-4" />
             {label}

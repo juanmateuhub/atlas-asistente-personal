@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { Ambient } from "@/components/shell/ambient";
 import { Sidebar, SidebarFrame, TabBar, TabBarFrame } from "@/components/shell/app-nav";
 import { AtlasLogo } from "@/components/brand/atlas-logo";
 import { JaxLauncher } from "@/components/jax/jax-launcher";
@@ -28,7 +27,6 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
     <MotionProvider>
       <ToastProvider>
         <div className="relative flex min-h-dvh overflow-clip bg-bg text-text">
-          <Ambient />
           <Suspense fallback={<SidebarFrame pathname={null} />}>
             <SidebarWithBadge />
           </Suspense>

@@ -72,7 +72,7 @@ export function ActionCards({ actions }: { actions: (JaxActionView & { error?: s
           >
             <span
               className={`relative flex size-9 shrink-0 items-center justify-center rounded-full ${
-                isDelete ? "bg-red-50 text-red-700" : "bg-line/30 text-accent"
+                isDelete ? "bg-red-50 text-red-700" : "bg-line/30 text-accent-ink"
               }`}
             >
               <Icon aria-hidden className="size-4" />
@@ -80,7 +80,7 @@ export function ActionCards({ actions }: { actions: (JaxActionView & { error?: s
                 {done && (
                   <motion.span
                     key="tick"
-                    className="absolute -right-1 -bottom-1 flex size-4 items-center justify-center rounded-full bg-accent text-white ring-2 ring-surface"
+                    className="absolute -right-1 -bottom-1 flex size-4 items-center justify-center rounded-full bg-accent text-on-accent ring-2 ring-surface"
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     exit={{ scale: 0 }}
@@ -115,7 +115,7 @@ export function ActionCards({ actions }: { actions: (JaxActionView & { error?: s
               {done && current.href && !isDelete && (
                 <Link
                   href={current.href}
-                  className="pressable inline-flex items-center gap-1 rounded-atlas px-2.5 py-1.5 text-xs font-medium text-accent hover:bg-line/30"
+                  className="pressable inline-flex items-center gap-1 rounded-atlas px-2.5 py-1.5 text-xs font-medium text-accent-ink hover:bg-line/30"
                 >
                   Ver
                   <ArrowUpRight aria-hidden className="size-3.5" />
@@ -138,7 +138,7 @@ export function ActionCards({ actions }: { actions: (JaxActionView & { error?: s
                   disabled={busy === action.id}
                   onClick={() => run(action.id, "apply")}
                   aria-label={`Aplicar: ${action.summary}`}
-                  className="pressable flex size-9 items-center justify-center rounded-full bg-accent text-white hover:bg-raised"
+                  className="pressable flex size-9 items-center justify-center rounded-full bg-accent text-on-accent hover:bg-accent-500"
                 >
                   <Check aria-hidden className="size-4" />
                 </button>

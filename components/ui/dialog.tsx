@@ -5,8 +5,8 @@ import { useId, useRef } from "react";
 import { iconButtonClass } from "./form";
 
 /**
- * Native <dialog> (modal, focus trap and Esc for free), styled like the
- * redesign's dialog: blurred backdrop, 22px radius, pop-in (globals.css).
+ * Native <dialog> (modal, focus trap and Esc for free), flat white card that
+ * floats (the one place with a shadow), 22px radius, pop-in (globals.css).
  * `alert` switches the role to alertdialog for destructive confirmations.
  */
 export function useDialog() {
@@ -44,16 +44,12 @@ export function Dialog({
         if (e.target === e.currentTarget) onClose();
       }}
       className="m-auto w-[min(420px,calc(100%-32px))] rounded-[22px] border-0 p-0 text-text"
-      style={{
-        background: "color-mix(in srgb, var(--color-surface) 92%, transparent)",
-        boxShadow:
-          "inset 0 1px 0 color-mix(in srgb, var(--color-text) 9%, transparent), 0 0 0 1px color-mix(in srgb, var(--color-text) 8%, transparent), 0 30px 80px rgba(0,0,0,.6)",
-      }}
+      style={{ background: "var(--color-surface)", boxShadow: "var(--shadow-lg)" }}
     >
       <div className="flex flex-col gap-[18px] p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex flex-col gap-1">
-            <h2 id={titleId} className="text-[20px] font-medium tracking-[-0.02em]">
+            <h2 id={titleId} className="text-[22px] font-bold tracking-[-0.035em]">
               {title}
             </h2>
             {subtitle && <span className="text-[13px] text-neutral-500">{subtitle}</span>}

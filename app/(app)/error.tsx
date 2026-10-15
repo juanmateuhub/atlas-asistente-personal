@@ -14,7 +14,7 @@ export default function AppError({ retry }: { error: Error & { digest?: string }
       className="flex animate-enter flex-col items-center gap-4 rounded-atlas bg-line/15 px-6 py-12 text-center"
     >
       <span className="flex size-14 items-center justify-center rounded-full bg-surface">
-        <TriangleAlert aria-hidden className="size-7 text-accent" />
+        <TriangleAlert aria-hidden className="size-7 text-accent-ink" />
       </span>
       <h1 className="text-lead font-medium">No se ha podido cargar esta página</h1>
       <p className="max-w-md text-base text-muted">

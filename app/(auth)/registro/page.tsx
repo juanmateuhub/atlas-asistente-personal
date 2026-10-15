@@ -20,7 +20,7 @@ export default function RegistroPage() {
       />
       <p className="text-sm text-muted">
         ¿Ya tienes cuenta?{" "}
-        <Link href="/login" className="font-medium text-accent">
+        <Link href="/login" className="font-medium text-accent-ink">
           Entra
         </Link>
       </p>

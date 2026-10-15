@@ -16,13 +16,9 @@ export function NewSubjectButton() {
         <button
           type="button"
           onClick={open}
-          className="inline-flex h-[42px] flex-none cursor-pointer items-center gap-[6px] rounded-full border border-accent px-5 text-[14px] font-medium whitespace-nowrap text-accent transition-[background,scale] duration-200 hover:bg-[color-mix(in_srgb,var(--color-accent)_12%,transparent)] active:scale-95 active:bg-[color-mix(in_srgb,var(--color-accent)_22%,transparent)]"
-          style={{
-            boxShadow: "0 0 22px color-mix(in srgb, var(--color-accent) 25%, transparent)",
-            transitionTimingFunction: "cubic-bezier(.34,1.8,.5,1)",
-          }}
+          className="pressable inline-flex h-[44px] flex-none cursor-pointer items-center gap-[6px] rounded-full bg-accent px-5 text-[15px] font-semibold whitespace-nowrap text-on-accent transition-[background,scale] hover:bg-accent-500"
         >
-          <Plus size={16} />
+          <Plus size={16} weight="bold" />
           Nueva asignatura
         </button>
       )}

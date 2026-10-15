@@ -1,8 +1,8 @@
 ## Diseño de Atlas
 
-- Base visual: el rediseño **Nocturne** (carpeta `Atlas rediseño Nocturno/`, maqueta `Atlas v2.dc.html`). Colores, rampas, radios, sombras y curvas en `app/globals.css` (copiados de `_ds/…/styles.css`).
-- Al migrar una pantalla, replicar la maqueta exactamente (tamaños, espaciados, radios, sombras, cubic-bezier) sin cambiar la lógica de datos. Iconos: `@phosphor-icons/react`. Fuente: Inter.
-- Microinteracciones: chispas y sonido al completar (`components/tasks/task-check.tsx`, `lib/ui/sound.ts`), salida deslizante de filas, aviso con Deshacer (`components/ui/toast.tsx`), indicadores deslizantes, brillo que sigue al ratón y cielo con estrellas de noche (`components/shell/ambient.tsx`).
-- Los tokens antiguos (`ink`, `body`, `muted`, `line`, `raised`, `sky`) son alias temporales para pantallas aún sin migrar.
-- El plugin `frontend-design` se usa para criterio y pulido, no para cambiar la estética.
-- Revisar la UI con capturas reales antes de darla por buena.
+- Identidad **Señal** (rama `identidad-nueva`): fondo papel `#F4F4F2`, tinta `#0E0E0E` y un único acento amarillo señal `#FFD000`. Titulares en Bricolage Grotesque, texto en Geist. Tokens en `app/globals.css`; maqueta de referencia `mockup-senal.png` (paleta) y `mockup-plana.png` (tipografía).
+- Reglas (skills `redesign-existing-projects` y `design-taste-frontend`): superficies separadas por tono (blanco sobre papel, `bg-step` para chips), sin líneas finas, sin sombras en reposo (solo lo que flota: diálogos, panel de Jax, aviso), sin degradados, sin brillos, sin cristal. Botones redondos; el principal amarillo con texto negro. El amarillo nunca como texto: usar `text-accent-ink`.
+- Rampas `neutral-*` y `accent-*` son de énfasis: 100 = máximo contraste con el fondo, 900 = más tenue.
+- Logo: "A" blanca sobre baldosa negra con un círculo amarillo en el vértice (`components/brand/atlas-logo.tsx`, `app/icon.svg`, `public/icons/`).
+- Microinteracciones: chispas y sonido al completar (`components/tasks/task-check.tsx`, `lib/ui/sound.ts`), salida deslizante de filas, aviso con Deshacer (`components/ui/toast.tsx`), indicadores deslizantes.
+- Iconos: `@phosphor-icons/react`. Revisar la UI con capturas reales antes de darla por buena; `web-design-guidelines` para auditar accesibilidad.

@@ -18,10 +18,11 @@ import { TaskFields } from "./task-fields";
 
 export type RowPhase = "check" | "leave" | "enter" | null;
 
+/** Low is grey, medium is the signal yellow, high is full ink: the darker, the more urgent. */
 export const PRIORITY_COLOR: Record<Priority, string> = {
-  baja: "var(--color-neutral-500)",
+  baja: "var(--color-neutral-600)",
   media: "var(--color-accent-600)",
-  alta: "var(--color-accent-300)",
+  alta: "var(--color-text)",
 };
 
 /**
@@ -83,7 +84,7 @@ export function TaskRow({
         />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <span
-            className="truncate text-[15.5px] font-medium transition-colors duration-300"
+            className="truncate text-[16px] font-semibold transition-colors duration-300"
             style={{
               color: checked ? "var(--color-neutral-500)" : "var(--color-text)",
               textDecorationLine: checked ? "line-through" : "none",
@@ -101,7 +102,7 @@ export function TaskRow({
               <CalendarBlank size={13} />
               {dueLabel}
             </span>
-            {task.status === "en_curso" && !checked && <span className="text-accent-300">En curso</span>}
+            {task.status === "en_curso" && !checked && <span className="font-medium text-accent-ink">En curso</span>}
           </span>
         </div>
 

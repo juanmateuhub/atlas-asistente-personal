@@ -10,8 +10,8 @@ export const metadata: Metadata = { title: "Tareas" };
 export default function TareasPage({ searchParams }: PageProps<"/tareas">) {
   return (
     <div className="animate-rise">
-      <h1 className="mb-[14px] text-[clamp(44px,6vw,68px)] leading-[1.02] tracking-[-0.04em]">Tareas</h1>
-      <p className="mb-[44px] text-[21px] tracking-[-0.012em] text-neutral-400">Lo que tienes que hacer, ordenado.</p>
+      <h1 className="mb-[14px] text-[clamp(48px,7vw,88px)] leading-[0.95] font-extrabold tracking-[-0.05em]">Tareas</h1>
+      <p className="mb-[44px] text-[clamp(19px,2vw,23px)] leading-[1.35] text-neutral-300">Lo que tienes que hacer, ordenado.</p>
       <Suspense fallback={<BoardSkeleton />}>
         <Board searchParams={searchParams} />
       </Suspense>
@@ -28,12 +28,12 @@ async function Board({ searchParams }: Pick<PageProps<"/tareas">, "searchParams"
 function BoardSkeleton() {
   return (
     <div aria-hidden className="flex flex-col">
-      <div className="h-14 animate-skeleton rounded-full bg-surface/60" />
-      <div className="mt-[36px] mb-[18px] h-10 w-[368px] max-w-full animate-skeleton rounded-full bg-surface/60" />
+      <div className="h-14 animate-skeleton rounded-full bg-step" />
+      <div className="mt-[36px] mb-[18px] h-10 w-[368px] max-w-full animate-skeleton rounded-full bg-step" />
       {[0, 1, 2].map((i) => (
         <div key={i} className="my-[14px] flex items-center gap-4">
           <div className="size-6 rounded-full border-[1.5px] border-neutral-700" />
-          <div className="h-4 w-1/2 animate-skeleton rounded bg-surface/60" />
+          <div className="h-4 w-1/2 animate-skeleton rounded bg-step" />
         </div>
       ))}
     </div>

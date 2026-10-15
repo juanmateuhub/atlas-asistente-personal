@@ -98,13 +98,7 @@ export function CalendarView({
                   "left .5s cubic-bezier(.34,1.35,.5,1), top .5s cubic-bezier(.34,1.35,.5,1), opacity .2s",
               }}
             >
-              <div
-                className="size-full rounded-[16px] bg-surface"
-                style={{
-                  boxShadow:
-                    "0 0 0 1px color-mix(in srgb, var(--color-text) 9%, transparent), inset 0 1px 0 color-mix(in srgb, var(--color-text) 7%, transparent), 0 10px 26px rgba(0,0,0,.45)",
-                }}
-              />
+              <div className="size-full rounded-[16px] bg-surface" />
             </div>
             {weeks.map((week) => (
               <div key={week[0]} role="row" className="contents">
@@ -129,7 +123,7 @@ export function CalendarView({
             <span
               aria-hidden
               className="size-[7px] rounded-full"
-              style={{ background: KIND_COLOR.exam, boxShadow: "0 0 8px var(--color-accent)" }}
+              style={{ background: KIND_COLOR.exam }}
             />
             Examen
           </li>
@@ -194,14 +188,9 @@ function DayCell({
       <span
         className="grid size-8 place-items-center rounded-full text-[14.5px] tabular-nums"
         style={{
-          fontWeight: isToday || isSelected ? 500 : 400,
-          color: isToday ? "var(--color-accent-100)" : inMonth ? "var(--color-neutral-200)" : "var(--color-neutral-700)",
-          background: isToday
-            ? "radial-gradient(circle at 50% 30%, var(--color-accent-600), var(--color-accent-800))"
-            : "transparent",
-          boxShadow: isToday
-            ? "0 0 0 1px var(--color-accent-400), 0 0 18px color-mix(in srgb, var(--color-accent) 55%, transparent)"
-            : "none",
+          fontWeight: isToday || isSelected ? 700 : 450,
+          color: isToday ? "var(--color-on-accent)" : inMonth ? "var(--color-neutral-200)" : "var(--color-neutral-700)",
+          background: isToday ? "var(--color-accent)" : "transparent",
         }}
       >
         {dayNumber}

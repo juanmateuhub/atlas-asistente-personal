@@ -35,7 +35,7 @@ export function Answer({ content, citations }: { content: string; citations: Cit
           citation={c}
           title={c.title}
           aria-label={`Fuente: ${c.title}`}
-          className="mx-0.5 inline-flex size-5 -translate-y-0.5 items-center justify-center rounded-full bg-line/40 align-middle text-caption font-medium text-accent hover:bg-accent hover:text-white"
+          className="mx-0.5 inline-flex size-5 -translate-y-0.5 items-center justify-center rounded-full bg-line/40 align-middle text-caption font-medium text-accent-ink hover:bg-accent hover:text-white"
         >
           {number(part.ref)}
         </SourceLink>
@@ -68,9 +68,9 @@ export function Answer({ content, citations }: { content: string; citations: Cit
             <li key={c.ref}>
               <SourceLink
                 citation={c}
-                className="pressable inline-flex items-center gap-2 rounded-atlas border border-line px-3 py-1.5 text-xs text-body hover:border-accent hover:text-accent"
+                className="pressable inline-flex items-center gap-2 rounded-atlas border border-line px-3 py-1.5 text-xs text-body hover:border-text hover:text-accent"
               >
-                <span className="font-medium tabular-nums text-accent">{i + 1}</span>
+                <span className="font-medium tabular-nums text-accent-ink">{i + 1}</span>
                 <FileText aria-hidden className="size-3.5" />
                 <span className="max-w-48 truncate">{c.title}</span>
               </SourceLink>

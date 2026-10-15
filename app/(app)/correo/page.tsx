@@ -77,7 +77,7 @@ async function Inbox({ searchParams }: Pick<PageProps<"/correo">, "searchParams"
               <Link
                 href={href({ hidden: !showHidden })}
                 scroll={false}
-                className="inline-flex items-center gap-[6px] rounded-full px-3 py-[5px] text-[13px] font-medium text-accent transition-colors hover:bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)]"
+                className="inline-flex items-center gap-[6px] rounded-full px-3 py-[5px] text-[13px] font-medium text-accent-ink transition-colors hover:bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)]"
               >
                 <EyeSlash size={15} />
                 {showHidden ? "Ocultar filtrados" : `Ver ${hidden} filtrados`}
@@ -110,7 +110,6 @@ async function Inbox({ searchParams }: Pick<PageProps<"/correo">, "searchParams"
                     className="mt-[7px] size-[7px] flex-none rounded-full"
                     style={{
                       background: m.unread ? "var(--color-accent)" : "transparent",
-                      boxShadow: m.unread ? "0 0 8px var(--color-accent)" : "none",
                     }}
                   />
                   <span className="flex min-w-0 flex-1 flex-col gap-[2px]">
@@ -134,12 +133,12 @@ async function Inbox({ searchParams }: Pick<PageProps<"/correo">, "searchParams"
 
         <div className="flex gap-2 pt-2">
           {pageToken && (
-            <Link href={href({ token: null })} className="rounded-full px-3 py-[5px] text-[13px] font-medium text-accent hover:bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)]">
+            <Link href={href({ token: null })} className="rounded-full px-3 py-[5px] text-[13px] font-medium text-accent-ink hover:bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)]">
               Volver al principio
             </Link>
           )}
           {page.nextPageToken && (
-            <Link href={href({ token: page.nextPageToken })} className="rounded-full px-3 py-[5px] text-[13px] font-medium text-accent hover:bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)]">
+            <Link href={href({ token: page.nextPageToken })} className="rounded-full px-3 py-[5px] text-[13px] font-medium text-accent-ink hover:bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)]">
               Correos más antiguos
             </Link>
           )}
@@ -165,7 +164,7 @@ function Connect({ notice, configured, reconnect = false }: { notice?: string; c
     <div className="flex max-w-xl flex-col gap-4">
       {notice && (
         <p role="alert" className="m-0 flex items-center gap-2 text-[14px] text-neutral-300">
-          <WarningCircle size={18} color="var(--color-accent-300)" />
+          <WarningCircle size={18} color="var(--color-accent-ink)" />
           {notice}
         </p>
       )}
@@ -178,8 +177,7 @@ function Connect({ notice, configured, reconnect = false }: { notice?: string; c
         // Plain <a>: the route redirects to Google, it is not an app page.
         <a
           href="/api/correo/conectar"
-          className="pressable inline-flex h-[42px] items-center gap-2 self-start rounded-full border border-accent px-5 text-[14px] font-medium text-accent transition-colors hover:bg-[color-mix(in_srgb,var(--color-accent)_12%,transparent)]"
-          style={{ boxShadow: "0 0 22px color-mix(in srgb, var(--color-accent) 25%, transparent)" }}
+          className="pressable inline-flex h-[44px] items-center gap-2 self-start rounded-full bg-accent px-5 text-[15px] font-semibold text-on-accent transition-[background,scale] hover:bg-accent-500"
         >
           <GoogleLogo size={16} weight="bold" />
           Conectar con Google
@@ -198,10 +196,10 @@ function Skeleton() {
     <div aria-hidden className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,1.6fr)_minmax(260px,1fr)]">
       <div className="flex flex-col gap-4">
         {[0, 1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-16 animate-skeleton rounded-[14px] bg-surface/60" />
+          <div key={i} className="h-16 animate-skeleton rounded-[14px] bg-step" />
         ))}
       </div>
-      <div className="h-72 animate-skeleton rounded-[20px] bg-surface/60" />
+      <div className="h-72 animate-skeleton rounded-[20px] bg-step" />
     </div>
   );
 }

@@ -53,7 +53,7 @@ export function AuthForm({
 
       <FormError message={state.error} />
       {state.message && (
-        <p role="status" className="text-sm text-accent">
+        <p role="status" className="text-sm text-accent-ink">
           {state.message}
         </p>
       )}

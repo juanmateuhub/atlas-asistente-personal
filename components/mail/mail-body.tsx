@@ -20,8 +20,7 @@ export function MailBody({ html, text }: { html: string | null; text: string | n
       title="Contenido del correo"
       sandbox="allow-popups allow-popups-to-escape-sandbox"
       srcDoc={doc}
-      className="h-[70dvh] w-full rounded-[18px] bg-white"
-      style={{ boxShadow: "0 0 0 1px color-mix(in srgb, var(--color-text) 8%, transparent), 0 24px 60px rgba(0,0,0,.38)" }}
+      className="h-[70dvh] w-full rounded-[22px] bg-white"
     />
   );
 }

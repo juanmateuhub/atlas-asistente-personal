@@ -10,10 +10,11 @@ import { AddToDay } from "./add-to-day";
 import { EventFields } from "./event-fields";
 
 /** Dot colour per kind, as in the redesign's legend. */
+/** Exams are the most important, so they get full ink; events the signal yellow; tasks grey. */
 export const KIND_COLOR = {
-  exam: "var(--color-accent-300)",
+  exam: "var(--color-text)",
   event: "var(--color-accent-600)",
-  task: "var(--color-neutral-500)",
+  task: "var(--color-neutral-600)",
 } as const;
 
 const weekdayFmt = new Intl.DateTimeFormat("es-ES", { weekday: "long", timeZone: "UTC" });
@@ -38,7 +39,6 @@ function timeLabel(item: AgendaItem) {
   return "Todo el día";
 }
 
-const CARD_SHADOW = "0 0 0 1px color-mix(in srgb, var(--color-text) 6%, transparent)";
 
 export function DayAgenda({
   day,
@@ -55,19 +55,19 @@ export function DayAgenda({
   goToday: { onClick: () => void } | { href: string } | null;
 }) {
   const p = parts(day);
-  const todayButton = "rounded-full px-3 py-[5px] text-[13px] font-medium text-accent transition-colors hover:bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)] active:bg-[color-mix(in_srgb,var(--color-accent)_18%,transparent)]";
+  const todayButton = "rounded-full px-3 py-[5px] text-[13px] font-medium text-accent-ink transition-colors hover:bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)] active:bg-[color-mix(in_srgb,var(--color-accent)_18%,transparent)]";
 
   return (
     <section aria-labelledby="agenda-title" className="flex flex-col gap-[18px] lg:sticky lg:top-6">
       <div className="flex items-start justify-between gap-4">
         <h2 id="agenda-title" className="m-0 flex flex-col gap-[6px] tracking-normal">
           <span className="text-[13px] font-medium text-neutral-500">{p.weekday}</span>
-          <span className="text-[44px] leading-none font-medium tracking-[-0.04em]">{p.day}</span>
+          <span className="font-heading text-[56px] leading-none font-extrabold tracking-[-0.05em]">{p.day}</span>
           <span className="text-[15px] font-normal text-neutral-400">{p.month}</span>
         </h2>
         <div className="flex items-center gap-2">
           {day === today && (
-            <span className="inline-flex items-center rounded-full bg-accent-800 px-[10px] py-[3px] text-[11px] tracking-[0.02em] text-accent-100">
+            <span className="inline-flex items-center rounded-full bg-accent px-3 py-1 text-[12.5px] font-semibold text-on-accent">
               Hoy
             </span>
           )}
@@ -88,13 +88,7 @@ export function DayAgenda({
       {items.length === 0 ? (
         <div
           key={day}
-          className="animate-fade rounded-[18px] p-[22px] text-[14.5px] leading-[1.55] text-neutral-400"
-          style={{
-            background:
-              "linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 85%, transparent), color-mix(in srgb, var(--color-surface) 45%, transparent))",
-            boxShadow:
-              "inset 0 1px 0 color-mix(in srgb, var(--color-text) 7%, transparent), 0 0 0 1px color-mix(in srgb, var(--color-text) 5%, transparent)",
-          }}
+          className="animate-fade rounded-[20px] bg-surface p-[22px] text-[15px] leading-[1.55] text-neutral-400"
         >
           Nada este día. Usa el botón + para añadir un evento, una tarea o un examen.
         </div>
@@ -127,7 +121,7 @@ function AgendaRow({ item }: { item: AgendaItem }) {
 
   const body = (
     <>
-      <span aria-hidden className="w-1 self-stretch rounded-[2px]" style={{ background: color, boxShadow: `0 0 10px ${color}` }} />
+      <span aria-hidden className="w-1 self-stretch rounded-[2px]" style={{ background: color }} />
       <span className="flex min-w-0 flex-1 flex-col gap-[2px]">
         <span
           className={`truncate text-[14.5px] font-medium ${done ? "text-neutral-500 line-through decoration-neutral-600" : ""}`}
@@ -148,21 +142,21 @@ function AgendaRow({ item }: { item: AgendaItem }) {
 
   if (item.kind === "task") {
     return (
-      <Link href="/tareas?estado=todas" className={`pressable ${rowClass}`} style={{ boxShadow: CARD_SHADOW }}>
+      <Link href="/tareas?estado=todas" className={`pressable ${rowClass}`}>
         {body}
       </Link>
     );
   }
   if (item.kind === "exam") {
     return (
-      <Link href={`/universidad/${item.subjectId}`} className={`pressable ${rowClass}`} style={{ boxShadow: CARD_SHADOW }}>
+      <Link href={`/universidad/${item.subjectId}`} className={`pressable ${rowClass}`}>
         {body}
       </Link>
     );
   }
 
   return (
-    <div className={rowClass} style={{ boxShadow: CARD_SHADOW }}>
+    <div className={rowClass}>
       {body}
       <div className="flex opacity-100 transition-opacity duration-150 md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100">
         <ActionDialog

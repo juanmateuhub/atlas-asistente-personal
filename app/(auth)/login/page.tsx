@@ -18,7 +18,7 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
       </Suspense>
       <p className="text-sm text-muted">
         ¿No tienes cuenta?{" "}
-        <Link href="/registro" className="font-medium text-accent">
+        <Link href="/registro" className="font-medium text-accent-ink">
           Crea una
         </Link>
       </p>

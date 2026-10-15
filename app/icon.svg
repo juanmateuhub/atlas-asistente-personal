@@ -1,24 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <defs>
-    <linearGradient id="atlas-bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#4a4180"/>
-      <stop offset="0.55" stop-color="#2f2a52"/>
-      <stop offset="1" stop-color="#1e1b33"/>
-    </linearGradient>
-    <radialGradient id="atlas-shine" cx="0.32" cy="0.22" r="0.75">
-      <stop offset="0" stop-color="#b5abfc" stop-opacity="0.35"/>
-      <stop offset="1" stop-color="#b5abfc" stop-opacity="0"/>
-    </radialGradient>
-    <mask id="atlas-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
-      <rect width="100" height="100" fill="#fff"/>
-      <path d="M19 55 A31 8 0 0 0 81 55" transform="rotate(-14 50 55)" fill="none" stroke="#000" stroke-width="17" stroke-linecap="round"/>
-    </mask>
-  </defs>
-  <rect width="100" height="100" rx="22.5" fill="url(#atlas-bg)"/>
-  <rect width="100" height="100" rx="22.5" fill="url(#atlas-shine)"/>
-  <rect x="0.75" y="0.75" width="98.5" height="98.5" rx="21.75" fill="none" stroke="#d2cefd" stroke-opacity="0.28" stroke-width="1.5"/>
-  <g fill="none" stroke="#fff" stroke-linecap="round" stroke-width="7.5">
-    <path d="M50 18 Q38 44 29 81 M50 18 Q62 44 71 81" mask="url(#atlas-cut)"/>
-    <path d="M19 55 A31 8 0 0 0 81 55" transform="rotate(-14 50 55)"/>
-  </g>
+  <rect width="100" height="100" rx="26" fill="#0e0e0e"/>
+  <path d="M27 80 50 40 73 80M35.5 66h29" fill="none" stroke="#f4f4f2" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="50" cy="25" r="11" fill="#ffd000"/>
 </svg>

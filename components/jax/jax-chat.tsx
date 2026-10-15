@@ -32,11 +32,8 @@ const MAX = 2000;
 /** If the server sends nothing for this long, stop waiting and say so. */
 const SILENCE_TIMEOUT_MS = 60_000;
 
-const COMPOSER_SHADOW = {
-  idle: "0 0 0 1px color-mix(in srgb, var(--color-text) 8%, transparent), inset 0 1px 0 color-mix(in srgb, var(--color-text) 6%, transparent), 0 14px 40px rgba(0,0,0,.3)",
-  focus:
-    "0 0 0 1px color-mix(in srgb, var(--color-accent) 70%, transparent), 0 0 0 5px color-mix(in srgb, var(--color-accent) 12%, transparent), 0 0 40px color-mix(in srgb, var(--color-accent) 18%, transparent), 0 20px 50px rgba(0,0,0,.4)",
-};
+// Flat white composer; focus draws an ink ring (no glow), like Tareas.
+const COMPOSER_SHADOW = { idle: "none", focus: "0 0 0 2px var(--color-text)" };
 
 /**
  * The Jax conversation. "page" is the full /jax screen (composer pinned to the
@@ -158,10 +155,9 @@ export function JaxChat({
                 <button
                   type="button"
                   onClick={() => void ask(s)}
-                  className="flex w-full cursor-pointer items-center gap-[10px] rounded-[14px] bg-surface px-4 py-3 text-left text-[14px] text-neutral-300 transition-[background,color,scale] duration-200 hover:bg-[color-mix(in_srgb,var(--color-surface)_70%,var(--color-accent-900))] hover:text-text active:scale-[0.98]"
-                  style={{ boxShadow: "0 0 0 1px color-mix(in srgb, var(--color-text) 6%, transparent)" }}
+                  className="flex w-full cursor-pointer items-center gap-[10px] rounded-[14px] bg-surface px-4 py-3 text-left text-[14px] text-neutral-300 transition-[background,color,scale] duration-200 hover:bg-accent-900 hover:text-text active:scale-[0.98]"
                 >
-                  <Sparkle size={15} weight="fill" color="var(--color-accent-300)" className="flex-none" />
+                  <Sparkle size={15} weight="fill" color="var(--color-accent-600)" className="flex-none" />
                   {s}
                 </button>
               </li>
@@ -180,19 +176,14 @@ export function JaxChat({
           >
             {m.role === "user" ? (
               <p
-                className="m-0 max-w-[85%] rounded-[18px] rounded-br-[6px] px-4 py-[10px] text-[15px] whitespace-pre-wrap text-accent-100"
-                style={{
-                  background: "color-mix(in srgb, var(--color-accent) 22%, var(--color-surface))",
-                  boxShadow:
-                    "inset 0 1px 0 color-mix(in srgb, var(--color-text) 8%, transparent), 0 0 0 1px color-mix(in srgb, var(--color-accent) 30%, transparent)",
-                }}
+                className="m-0 max-w-[85%] rounded-[20px] rounded-br-[6px] bg-accent px-4 py-[10px] text-[15px] font-medium whitespace-pre-wrap text-on-accent"
               >
                 {m.content}
               </p>
             ) : (
               <>
                 <JaxAvatar className="mt-0.5 size-8 flex-none" />
-                <div className="min-w-0 flex-1 text-[15px] leading-relaxed text-neutral-200">
+                <div className="min-w-0 flex-1 text-[15.5px] leading-relaxed text-neutral-200">
                   <Answer content={m.content} citations={m.citations} />
                   {m.actions.length > 0 && <ActionCards actions={m.actions} />}
                 </div>
@@ -205,14 +196,14 @@ export function JaxChat({
       {streaming && (
         <div className="flex gap-3">
           <JaxAvatar mood={draft ? "speaking" : "thinking"} className="mt-0.5 size-8 flex-none" />
-          <div className="min-w-0 flex-1 text-[15px] leading-relaxed text-neutral-200">
+          <div className="min-w-0 flex-1 text-[15.5px] leading-relaxed text-neutral-200">
             {draft ? <Answer content={draft} citations={[]} /> : <Thinking />}
           </div>
         </div>
       )}
 
       {error && (
-        <p role="alert" className="m-0 animate-fade rounded-[14px] bg-surface px-4 py-3 text-[14px] text-[#f0a3b0]">
+        <p role="alert" className="m-0 animate-fade rounded-[14px] bg-danger-soft px-4 py-3 text-[14px] text-danger">
           {error}
         </p>
       )}
@@ -229,10 +220,9 @@ export function JaxChat({
         }}
         className="flex items-end gap-[6px] rounded-[24px] py-[6px] pr-[6px] pl-4"
         style={{
-          background: "color-mix(in srgb, var(--color-surface) 85%, transparent)",
-          backdropFilter: "blur(20px)",
+          background: "var(--color-surface)",
           boxShadow: focused ? COMPOSER_SHADOW.focus : COMPOSER_SHADOW.idle,
-          transition: "box-shadow .35s",
+          transition: "box-shadow .2s",
         }}
       >
         <label htmlFor={`jax-input-${variant}`} className="sr-only">
@@ -260,7 +250,7 @@ export function JaxChat({
             type="button"
             onClick={() => abort.current?.abort()}
             aria-label="Detener respuesta"
-            className="grid size-11 flex-none cursor-pointer place-items-center rounded-full bg-neutral-800 text-neutral-200 transition-[scale] duration-200 active:scale-[0.88]"
+            className="grid size-11 flex-none cursor-pointer place-items-center rounded-full bg-text text-bg transition-[scale] duration-200 active:scale-[0.88]"
           >
             <Stop size={16} weight="fill" />
           </button>
@@ -269,12 +259,11 @@ export function JaxChat({
             type="submit"
             disabled={!input.trim()}
             aria-label="Enviar"
-            className="grid size-11 flex-none cursor-pointer place-items-center rounded-full border border-accent text-accent-200 active:scale-[0.88] disabled:cursor-not-allowed"
+            className="grid size-11 flex-none cursor-pointer place-items-center rounded-full active:scale-[0.88] disabled:cursor-not-allowed disabled:opacity-100"
             style={{
-              background: "color-mix(in srgb, var(--color-accent) 14%, transparent)",
-              opacity: input.trim() ? 1 : 0.45,
-              boxShadow: input.trim() ? "0 0 22px color-mix(in srgb, var(--color-accent) 50%, transparent)" : "none",
-              transition: "opacity .2s, box-shadow .3s, scale .2s cubic-bezier(.34,1.8,.5,1)",
+              background: input.trim() ? "var(--color-accent)" : "var(--color-step)",
+              color: input.trim() ? "var(--color-on-accent)" : "var(--color-neutral-600)",
+              transition: "background .2s, color .2s, scale .2s cubic-bezier(.34,1.8,.5,1)",
             }}
           >
             <ArrowUp size={18} />
@@ -332,7 +321,7 @@ export function JaxChat({
       <header className="flex items-center gap-4 md:gap-6">
         <JaxAvatar mood={mood} detail="full" className="size-24 flex-none md:size-32" />
         <div className="flex min-w-0 flex-col gap-2">
-          <h1 className="m-0 text-[clamp(44px,6vw,68px)] leading-[1.02] tracking-[-0.04em]">Jax</h1>
+          <h1 className="m-0 text-[clamp(52px,7vw,88px)] leading-[0.95] font-extrabold tracking-[-0.05em]">Jax</h1>
           <p className="m-0 text-[17px] tracking-[-0.012em] text-neutral-400 md:text-[21px]">
             Tu asistente: conoce tu agenda y tus apuntes.
           </p>
@@ -342,7 +331,7 @@ export function JaxChat({
       {conversation}
 
       {/* Pinned to the viewport bottom; on mobile its padding clears the 60px tab bar, with no gap. */}
-      <div className="sticky bottom-0 -mx-4 bg-[linear-gradient(to_bottom,transparent,var(--color-bg)_28px)] px-4 pt-6 pb-[calc(68px+env(safe-area-inset-bottom))] md:mx-0 md:px-0 md:pb-6">
+      <div className="sticky bottom-0 -mx-4 bg-bg px-4 pt-3 pb-[calc(68px+env(safe-area-inset-bottom))] md:mx-0 md:px-0 md:pb-6">
         {composer}
       </div>
     </div>

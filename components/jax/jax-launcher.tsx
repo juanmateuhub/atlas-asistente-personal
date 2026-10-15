@@ -9,8 +9,7 @@ import { JaxChat, type JaxChatMessage } from "./jax-chat";
 
 type Load = { state: "idle" | "loading" } | { state: "ready"; messages: JaxChatMessage[] } | { state: "error"; message: string };
 
-const PANEL_SHADOW =
-  "inset 0 1px 0 color-mix(in srgb, var(--color-text) 9%, transparent), 0 0 0 1px color-mix(in srgb, var(--color-text) 8%, transparent), 0 0 40px color-mix(in srgb, var(--color-accent) 14%, transparent), 0 30px 80px rgba(0,0,0,.6)";
+const PANEL_SHADOW = "var(--shadow-lg)";
 
 /**
  * Jax from any screen: an animated avatar fixed top-right that opens a dropdown
@@ -86,10 +85,8 @@ export function JaxLauncher() {
         title="Jax"
         className="fixed top-[calc(max(env(safe-area-inset-top),16px)-5px)] right-4 z-30 grid size-10 cursor-pointer place-items-center rounded-full transition-[scale] duration-200 active:scale-90 md:top-6 md:right-8 md:size-12"
         style={{
-          background: "radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--color-accent) 22%, var(--color-surface)), var(--color-surface) 70%)",
-          boxShadow: open
-            ? "0 0 0 1px color-mix(in srgb, var(--color-accent) 70%, transparent), 0 0 0 5px color-mix(in srgb, var(--color-accent) 14%, transparent), 0 0 28px color-mix(in srgb, var(--color-accent) 40%, transparent)"
-            : "0 0 0 1px color-mix(in srgb, var(--color-text) 10%, transparent), 0 0 22px color-mix(in srgb, var(--color-accent) 25%, transparent), 0 10px 26px rgba(0,0,0,.45)",
+          background: "var(--color-surface)",
+          boxShadow: open ? "0 0 0 2px var(--color-text)" : "0 0 0 1px color-mix(in srgb, var(--color-text) 12%, transparent)",
           transitionTimingFunction: "cubic-bezier(.34,1.8,.5,1)",
         }}
       >
@@ -102,8 +99,7 @@ export function JaxLauncher() {
         inert={!open}
         className="fixed top-[calc(max(env(safe-area-inset-top),16px)+44px)] right-2 bottom-[calc(68px+env(safe-area-inset-bottom))] left-2 z-30 flex flex-col overflow-hidden rounded-[22px] md:top-[84px] md:right-8 md:bottom-auto md:left-auto md:h-[min(640px,calc(100dvh-110px))] md:w-[420px]"
         style={{
-          background: "color-mix(in srgb, var(--color-bg) 88%, var(--color-surface))",
-          backdropFilter: "blur(28px) saturate(140%)",
+          background: "var(--color-bg)",
           boxShadow: PANEL_SHADOW,
           transformOrigin: "top right",
           opacity: open ? 1 : 0,
@@ -117,7 +113,7 @@ export function JaxLauncher() {
       >
         <header className="flex flex-none items-center gap-3 px-4 pt-4 pb-2">
           <span className="min-w-0 flex-1">
-            <span className="block text-[17px] font-medium tracking-[-0.01em]">Jax</span>
+            <span className="block font-heading text-[22px] font-bold tracking-[-0.035em]">Jax</span>
             <span className="block truncate text-[12.5px] text-neutral-500">Conoce tu agenda y tus apuntes</span>
           </span>
           <Link
@@ -142,8 +138,8 @@ export function JaxLauncher() {
           {load.state === "ready" && <JaxChat initialMessages={load.messages} variant="panel" onMood={setMood} />}
           {(load.state === "loading" || load.state === "idle") && (
             <div aria-hidden className="flex flex-col gap-3 p-4">
-              <div className="h-10 w-2/3 self-end animate-skeleton rounded-[18px] bg-surface/70" />
-              <div className="h-16 w-5/6 animate-skeleton rounded-[18px] bg-surface/70" />
+              <div className="h-10 w-2/3 self-end animate-skeleton rounded-[18px] bg-step" />
+              <div className="h-16 w-5/6 animate-skeleton rounded-[18px] bg-step" />
             </div>
           )}
           {load.state === "error" && (
@@ -154,7 +150,7 @@ export function JaxLauncher() {
               <button
                 type="button"
                 onClick={() => void fetchConversation()}
-                className="rounded-full px-3 py-[5px] text-[13px] font-medium text-accent hover:bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)]"
+                className="rounded-full px-3 py-[5px] text-[13px] font-medium text-accent-ink hover:bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)]"
               >
                 Reintentar
               </button>

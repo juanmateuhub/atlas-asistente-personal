@@ -48,8 +48,8 @@ async function Calendar({ searchParams }: Pick<PageProps<"/calendario">, "search
 function Skeleton() {
   return (
     <div aria-hidden className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,1.6fr)_minmax(260px,1fr)]">
-      <div className="h-[480px] animate-skeleton rounded-[20px] bg-surface/60" />
-      <div className="h-48 animate-skeleton rounded-[18px] bg-surface/60" />
+      <div className="h-[480px] animate-skeleton rounded-[20px] bg-step" />
+      <div className="h-48 animate-skeleton rounded-[18px] bg-step" />
     </div>
   );
 }

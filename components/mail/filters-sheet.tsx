@@ -14,7 +14,7 @@ export function FiltersSheet({ filters, hiddenCount, email }: { filters: MailFil
       <button
         type="button"
         onClick={dialog.open}
-        className="inline-flex items-center gap-[6px] rounded-full px-3 py-[5px] text-[13px] font-medium text-accent transition-colors hover:bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)] lg:hidden"
+        className="inline-flex items-center gap-[6px] rounded-full px-3 py-[5px] text-[13px] font-medium text-accent-ink transition-colors hover:bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)] lg:hidden"
       >
         <Funnel size={15} />
         Filtros

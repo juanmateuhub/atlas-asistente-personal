@@ -1,20 +1,20 @@
-/* Nocturne form + button styles (from the redesign's .input / .btn classes). */
+/* "Señal" form + button styles. Buttons are fully round and flat; only the primary one uses the accent. */
 
 export const inputClass =
-  "w-full min-h-[44px] rounded-[12px] border border-divider bg-surface px-[14px] text-[15px] text-text caret-accent transition-colors hover:border-[color-mix(in_srgb,var(--color-text)_45%,transparent)] focus-visible:border-accent focus-visible:outline-offset-0 [&:is(textarea)]:py-3";
+  "w-full min-h-[44px] rounded-[12px] border border-divider bg-surface px-[14px] text-[15px] text-text caret-text transition-colors hover:border-[color-mix(in_srgb,var(--color-text)_35%,transparent)] focus-visible:border-text focus-visible:outline-offset-0 [&:is(textarea)]:py-3";
 
-/** Primary action: accent outline, never a fill. */
+/** Primary action: signal-yellow fill, ink text. One per view. */
 export const primaryButtonClass =
-  "pressable inline-flex h-[38px] items-center justify-center gap-[6px] rounded-full border border-accent px-[18px] text-[14px] font-medium text-accent transition-colors hover:bg-[color-mix(in_srgb,var(--color-accent)_12%,transparent)] active:bg-[color-mix(in_srgb,var(--color-accent)_22%,transparent)]";
+  "pressable inline-flex h-[40px] items-center justify-center gap-[6px] rounded-full bg-accent px-[18px] text-[14px] font-semibold text-on-accent transition-[background,scale] hover:bg-accent-500 active:bg-accent-600";
 
 export const secondaryButtonClass =
-  "pressable inline-flex h-[38px] items-center justify-center gap-[6px] rounded-full border border-divider px-4 text-[14px] font-medium text-text transition-colors hover:bg-[color-mix(in_srgb,var(--color-text)_7%,transparent)] active:bg-[color-mix(in_srgb,var(--color-text)_14%,transparent)]";
+  "pressable inline-flex h-[40px] items-center justify-center gap-[6px] rounded-full bg-step px-4 text-[14px] font-medium text-text transition-[background,scale] hover:bg-neutral-800 active:bg-neutral-700";
 
 export const dangerButtonClass =
-  "pressable inline-flex h-[38px] items-center justify-center gap-[6px] rounded-full border border-[#e27d8e] px-[18px] text-[14px] font-medium text-[#f0a3b0] transition-colors hover:bg-[color-mix(in_srgb,#e27d8e_14%,transparent)] active:bg-[color-mix(in_srgb,#e27d8e_24%,transparent)]";
+  "pressable inline-flex h-[40px] items-center justify-center gap-[6px] rounded-full bg-danger px-[18px] text-[14px] font-semibold text-white transition-[background,scale] hover:bg-[#ab1f1f] active:bg-[#951b1b]";
 
 export const iconButtonClass =
-  "pressable grid size-[30px] shrink-0 place-items-center rounded-full text-neutral-500 transition-colors hover:bg-[color-mix(in_srgb,var(--color-text)_7%,transparent)] hover:text-neutral-300";
+  "pressable grid size-[32px] shrink-0 place-items-center rounded-full text-neutral-500 transition-colors hover:bg-[color-mix(in_srgb,var(--color-text)_7%,transparent)] hover:text-neutral-200";
 
 export function Field({
   label,
@@ -29,7 +29,7 @@ export function Field({
 }) {
   return (
     <div className="flex flex-col gap-[5px]">
-      <label htmlFor={htmlFor} className="text-[12px] text-[color-mix(in_srgb,var(--color-text)_70%,transparent)]">
+      <label htmlFor={htmlFor} className="text-[12.5px] font-medium text-neutral-400">
         {label}
       </label>
       {children}
@@ -41,7 +41,7 @@ export function Field({
 export function FormError({ message }: { message?: string }) {
   if (!message) return null;
   return (
-    <p role="alert" className="animate-fade text-[13px] text-[#f0a3b0]">
+    <p role="alert" className="animate-fade text-[13px] text-danger">
       {message}
     </p>
   );

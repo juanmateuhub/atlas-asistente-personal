@@ -24,7 +24,7 @@ export default function MensajePage({ params }: PageProps<"/correo/[id]">) {
         <CaretLeft size={14} />
         Correo
       </Link>
-      <Suspense fallback={<div aria-hidden className="h-[60dvh] animate-skeleton rounded-[18px] bg-surface/60" />}>
+      <Suspense fallback={<div aria-hidden className="h-[60dvh] animate-skeleton rounded-[18px] bg-step" />}>
         <Message params={params} />
       </Suspense>
     </div>
@@ -60,8 +60,7 @@ async function Message({ params }: Pick<PageProps<"/correo/[id]">, "params">) {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13.5px]">
           <span
             aria-hidden
-            className="grid size-9 flex-none place-items-center rounded-full text-[14px] font-medium text-accent-200"
-            style={{ background: "radial-gradient(circle at 30% 20%, var(--color-accent-700), var(--color-accent-900) 70%)" }}
+            className="grid size-9 flex-none place-items-center rounded-[12px] bg-accent text-[15px] font-bold text-on-accent"
           >
             {message.fromName.charAt(0).toUpperCase()}
           </span>
@@ -79,7 +78,7 @@ async function Message({ params }: Pick<PageProps<"/correo/[id]">, "params">) {
             href={link}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-[6px] rounded-full px-3 py-[5px] text-[13px] font-medium text-accent transition-colors hover:bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)]"
+            className="inline-flex items-center gap-[6px] rounded-full px-3 py-[5px] text-[13px] font-medium text-accent-ink transition-colors hover:bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)]"
           >
             Abrir en Gmail
             <ArrowSquareOut size={14} />
@@ -92,8 +91,7 @@ async function Message({ params }: Pick<PageProps<"/correo/[id]">, "params">) {
           {message.attachments.map((name, i) => (
             <li
               key={`${name}-${i}`}
-              className="inline-flex max-w-full items-center gap-[6px] rounded-full bg-surface px-3 py-[5px] text-[12.5px] text-neutral-300"
-              style={{ boxShadow: "0 0 0 1px color-mix(in srgb, var(--color-text) 6%, transparent)" }}
+              className="inline-flex max-w-full items-center gap-[6px] rounded-full bg-step px-3 py-[5px] text-[12.5px] text-neutral-300"
             >
               <Paperclip size={13} />
               <span className="truncate">{name}</span>

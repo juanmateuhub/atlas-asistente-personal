@@ -90,7 +90,7 @@ export function NoteEditor({
     <div className="flex flex-col gap-6">
       <TitleInput pageId={pageId} initialTitle={initialTitle} />
 
-      <div className="sticky top-0 z-10 -mx-2 flex items-center justify-between gap-2 bg-surface/90 px-2 py-2 backdrop-blur-sm">
+      <div className="sticky top-0 z-10 -mx-2 flex items-center justify-between gap-2 bg-bg px-2 py-2">
         <Toolbar editor={editor} />
         <SaveIndicator status={status} />
       </div>
@@ -151,7 +151,7 @@ function SaveIndicator({ status }: { status: SaveStatus }) {
     status === "conflict" || status === "invalid"
       ? "text-red-700"
       : status === "retrying"
-        ? "text-accent"
+        ? "text-accent-ink"
         : "text-muted";
   return (
     <div aria-live="polite" className="relative h-5 shrink-0 text-right text-xs">
@@ -212,7 +212,7 @@ function Toolbar({ editor }: { editor: Editor | null }) {
       aria-pressed={active}
       title={item.label}
       className={`pressable flex size-10 items-center justify-center rounded-atlas ${
-        active ? "bg-raised text-white" : "text-body hover:bg-line/30"
+        active ? "bg-accent text-on-accent" : "text-body hover:bg-line/30"
       }`}
     >
       <item.icon aria-hidden className="size-5" />
@@ -220,7 +220,7 @@ function Toolbar({ editor }: { editor: Editor | null }) {
   );
 
   return (
-    <div role="toolbar" aria-label="Formato" className="flex min-w-0 items-center gap-1 overflow-x-auto">
+    <div role="toolbar" aria-label="Formato" className="flex min-w-0 items-center gap-1 overflow-x-auto [scrollbar-width:none]">
       {MARKS.map((item, i) => button(item, state.active[i]))}
       <span aria-hidden className="mx-1 h-6 w-px shrink-0 bg-line" />
       {BLOCKS.map((item, i) => button(item, state.active[MARKS.length + i]))}

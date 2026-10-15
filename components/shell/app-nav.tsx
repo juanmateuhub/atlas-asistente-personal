@@ -23,11 +23,7 @@ export function SidebarFrame({ pathname, footer, pendingCount = 0 }: Props & { p
       <div aria-hidden className="hidden w-[248px] flex-none md:block" />
       <aside
         className="fixed inset-y-0 left-0 z-[2] hidden h-dvh w-[248px] flex-col overflow-y-auto px-[14px] pt-[28px] pb-[20px] md:flex"
-        style={{
-          background: "color-mix(in srgb, var(--color-surface) 50%, transparent)",
-          backdropFilter: "blur(28px) saturate(140%)",
-          boxShadow: "1px 0 0 color-mix(in srgb, var(--color-text) 6%, transparent)",
-        }}
+        style={{ background: "var(--color-sidebar)" }}
       >
         <Link href="/" className="flex items-center gap-[11px] px-[10px] pb-[32px]">
           <AtlasLogo className="size-8" />
@@ -41,13 +37,10 @@ export function SidebarFrame({ pathname, footer, pendingCount = 0 }: Props & { p
                 key={href}
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className="flex h-10 items-center gap-3 rounded-[11px] px-3 text-[14px] font-medium transition-[background,color,scale] duration-[250ms,250ms,150ms] hover:bg-[color-mix(in_srgb,var(--color-text)_6%,transparent)] active:scale-[0.97]"
+                className="flex h-10 items-center gap-3 rounded-full px-3 text-[14px] font-medium transition-[background,color,scale] duration-[250ms,250ms,150ms] hover:bg-[color-mix(in_srgb,var(--color-text)_6%,transparent)] active:scale-[0.97]"
                 style={{
-                  background: active ? "color-mix(in srgb, var(--color-text) 8%, transparent)" : undefined,
-                  color: active ? "var(--color-text)" : "var(--color-neutral-400)",
-                  boxShadow: active
-                    ? "inset 0 1px 0 color-mix(in srgb, var(--color-text) 8%, transparent), 0 0 0 1px color-mix(in srgb, var(--color-text) 4%, transparent)"
-                    : "none",
+                  background: active ? "var(--color-text)" : undefined,
+                  color: active ? "var(--color-bg)" : "var(--color-neutral-400)",
                 }}
               >
                 <Icon
@@ -59,12 +52,8 @@ export function SidebarFrame({ pathname, footer, pendingCount = 0 }: Props & { p
                 <span className="flex-1">{label}</span>
                 {badge && pendingCount > 0 && (
                   <span
-                    className="grid h-5 min-w-5 place-items-center rounded-full px-[6px] text-[11px] tabular-nums"
-                    style={{
-                      background: "var(--color-accent-900)",
-                      color: "var(--color-accent-300)",
-                      boxShadow: "0 0 0 1px var(--color-accent-800)",
-                    }}
+                    className="grid h-5 min-w-5 place-items-center rounded-full px-[6px] text-[11px] font-semibold tabular-nums"
+                    style={{ background: "var(--color-accent)", color: "var(--color-on-accent)" }}
                   >
                     {pendingCount}
                   </span>
@@ -89,11 +78,7 @@ export function TabBarFrame({ pathname }: { pathname: string | null }) {
     <nav
       aria-label="Principal"
       className="fixed inset-x-0 bottom-0 z-10 pb-[env(safe-area-inset-bottom)] md:hidden"
-      style={{
-        background: "color-mix(in srgb, var(--color-surface) 82%, transparent)",
-        backdropFilter: "blur(24px)",
-        boxShadow: "0 -1px 0 color-mix(in srgb, var(--color-text) 8%, transparent)",
-      }}
+      style={{ background: "var(--color-sidebar)" }}
     >
       <ul className="flex">
         {navItems.filter((item) => !item.desktopOnly).map(({ href, label, short, icon: Icon }) => {
@@ -103,10 +88,16 @@ export function TabBarFrame({ pathname }: { pathname: string | null }) {
               <Link
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className="flex flex-col items-center gap-1 py-2 text-[11px] font-medium transition-[scale] duration-150 active:scale-[0.94]"
+                className="flex flex-col items-center gap-[2px] py-[6px] text-[11px] font-medium transition-[scale] duration-150 active:scale-[0.94]"
                 style={{ color: active ? "var(--color-text)" : "var(--color-neutral-500)" }}
               >
-                <Icon size={22} weight={active ? "fill" : "regular"} color={active ? "var(--color-accent)" : undefined} />
+                {/* Active: ink icon on a yellow pill (yellow alone is unreadable on the light bar). */}
+                <span
+                  className="grid h-7 w-12 place-items-center rounded-full transition-[background] duration-200"
+                  style={{ background: active ? "var(--color-accent)" : "transparent" }}
+                >
+                  <Icon size={21} weight={active ? "fill" : "regular"} color={active ? "var(--color-on-accent)" : undefined} />
+                </span>
                 {short ?? label}
               </Link>
             </li>

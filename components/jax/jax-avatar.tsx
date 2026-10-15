@@ -7,7 +7,7 @@ import { useEffect, useRef } from "react";
 export type JaxMood = "idle" | "thinking" | "speaking";
 
 /**
- * Eye centres on public/jax.png (transparent 512×512 cut-out), as % of the
+ * Eye centres on public/jax-senal.png (transparent 512×512 cut-out), as % of the
  * image. Measured from the artwork by the cut-out script; the original is in
  * assets/jax-avatar-source.png.
  */
@@ -18,9 +18,10 @@ const EYES = [
   { x: 50, y: 56 }, // bottom
 ] as const;
 const EYE_LID = 4.2; // % of the image: covers a baked-in eye when blinking
-const GLOW = "radial-gradient(circle, rgba(236,254,255,1) 0%, rgba(103,232,249,0.65) 30%, rgba(34,211,238,0) 70%)";
-const LID = "radial-gradient(circle, #241c3d 55%, rgba(36,28,61,0) 75%)";
-const SRC = "/jax.png";
+// "Señal" colours: signal-yellow eyes, graphite hood (public/jax-senal.png; Nocturne original in assets/jax-nocturne.png).
+const GLOW = "radial-gradient(circle, rgba(255,250,224,1) 0%, rgba(255,208,0,0.65) 30%, rgba(255,208,0,0) 70%)";
+const LID = "radial-gradient(circle, #1a1918 55%, rgba(26,25,24,0) 75%)";
+const SRC = "/jax-senal.png";
 
 type Props = {
   mood?: JaxMood;
@@ -65,7 +66,7 @@ export function JaxAvatar({ mood = "idle", className = "size-8", detail = "lite"
   if (reduce) {
     return (
       <span aria-hidden className={`relative inline-block shrink-0 ${className}`}>
-        <Image src={SRC} alt="" fill sizes="128px" className="object-contain drop-shadow-[0_6px_10px_rgba(49,23,110,0.35)]" />
+        <Image src={SRC} alt="" fill sizes="128px" className="object-contain drop-shadow-[0_6px_10px_rgba(14,14,14,0.25)]" />
       </span>
     );
   }
@@ -82,7 +83,7 @@ export function JaxAvatar({ mood = "idle", className = "size-8", detail = "lite"
     <span ref={root} aria-hidden className={`relative inline-block shrink-0 ${className}`} style={{ perspective: 600 }}>
       {/* Contact shadow: shrinks and fades as Jax floats up. */}
       <motion.span
-        className="absolute bottom-[-6%] left-1/2 h-[9%] w-[56%] -translate-x-1/2 rounded-[50%] bg-[#31176e]/30 blur-[3px]"
+        className="absolute bottom-[-6%] left-1/2 h-[9%] w-[56%] -translate-x-1/2 rounded-[50%] bg-[#0e0e0e]/20 blur-[3px]"
         animate={{ scaleX: [1, 0.82, 1], opacity: [0.55, 0.3, 0.55] }}
         transition={{ duration: floatDuration, repeat: Infinity, ease: "easeInOut" }}
       />
@@ -100,7 +101,7 @@ export function JaxAvatar({ mood = "idle", className = "size-8", detail = "lite"
             alt=""
             fill
             sizes={full ? "(min-width: 768px) 160px, 112px" : "48px"}
-            className="object-contain drop-shadow-[0_6px_10px_rgba(49,23,110,0.35)]"
+            className="object-contain drop-shadow-[0_6px_10px_rgba(14,14,14,0.25)]"
           />
 
           {/* Specular sheen sweeping across the figure, clipped to its silhouette. */}
@@ -203,7 +204,7 @@ export function JaxAvatar({ mood = "idle", className = "size-8", detail = "lite"
               {[0, 120, 240].map((deg) => (
                 <span
                   key={deg}
-                  className="absolute left-1/2 top-1/2 size-[7%] rounded-full bg-cyan-300 shadow-[0_0_8px_rgba(103,232,249,0.9)]"
+                  className="absolute left-1/2 top-1/2 size-[7%] rounded-full bg-[#ffd000] shadow-[0_0_8px_rgba(255,208,0,0.9)]"
                   style={{ transform: `rotate(${deg}deg) translateX(330%)` }}
                 />
               ))}
