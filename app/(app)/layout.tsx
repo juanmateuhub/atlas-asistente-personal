@@ -33,15 +33,12 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
             <SidebarWithBadge />
           </Suspense>
           <main className="relative z-[1] min-w-0 flex-1 px-4 pt-[max(env(safe-area-inset-top),16px)] pb-28 md:px-[clamp(28px,6vw,96px)] md:pt-[72px] md:pb-[120px]">
-            {/* pr: room for the fixed Jax avatar (JaxLauncher) at the top right. */}
-            <div className="flex items-center justify-between pr-[52px] pb-4 md:hidden">
+            {/* The fixed Jax avatar (JaxLauncher) sits at the right; sign-out lives at the end of Inicio on mobile. */}
+            <div className="flex h-[30px] items-center pb-4 md:hidden">
               <span className="flex items-center gap-[10px] text-[17px] font-medium tracking-[-0.025em]">
                 <AtlasLogo className="size-[26px]" />
                 Atlas
               </span>
-              <Suspense fallback={<div aria-hidden className="size-[30px]" />}>
-                <UserMenu compact />
-              </Suspense>
             </div>
             <div className="mx-auto max-w-[1120px]">{children}</div>
           </main>

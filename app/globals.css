@@ -279,6 +279,20 @@
   }
 }
 
+/*
+ * iOS Safari zooms the page in when a field under 16px gets focus, and keeps
+ * that zoom after leaving it. Touch screens get 16px fields; pinch-zoom stays
+ * available (no maximum-scale in the viewport). !important beats the
+ * per-component text sizes, which are Tailwind utilities.
+ */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

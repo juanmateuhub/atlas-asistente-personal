@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { ArrowUpRight, CaretRight, FileText, MoonStars, Plus, Sun, SunHorizon } from "@phosphor-icons/react/ssr";
 import { Suspense } from "react";
 import { TodayTasks } from "@/components/home/today-tasks";
+import { UserMenu } from "@/components/shell/user-menu";
 import { Spotlight } from "@/components/ui/spotlight";
 import { spotGradient } from "@/lib/ui/spot";
 import { ExamRow } from "@/components/university/exam-row";
@@ -21,9 +22,20 @@ const CARD_SHADOW =
 
 export default function InicioPage() {
   return (
-    <Suspense fallback={<Skeleton />}>
-      <Dashboard />
-    </Suspense>
+    <>
+      <Suspense fallback={<Skeleton />}>
+        <Dashboard />
+      </Suspense>
+      {/* Mobile: the account and sign-out, out of the way at the end of Inicio (desktop has them in the sidebar). */}
+      <div
+        className="mx-[-10px] mt-14 rounded-[16px] md:hidden"
+        style={{ background: "color-mix(in srgb, var(--color-text) 4%, transparent)" }}
+      >
+        <Suspense fallback={<div aria-hidden className="h-[50px]" />}>
+          <UserMenu />
+        </Suspense>
+      </div>
+    </>
   );
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, PlusCircle, Sparkle } from "@phosphor-icons/react";
+import { ArrowUp, Sparkle } from "@phosphor-icons/react";
 import { useMemo, useRef, useState, useTransition } from "react";
 import { createTask, toggleTaskDone } from "@/app/(app)/tareas/actions";
 import { FormError } from "@/components/ui/form";
@@ -50,7 +50,8 @@ export function TaskBoard({ tasks, today, initialFilter }: { tasks: Task[]; toda
 
   const [draft, setDraft] = useState("");
   const [draftPrio, setDraftPrio] = useState<Priority>("media");
-  const [draftDate, setDraftDate] = useState("");
+  // Today by default: most tasks are added for today; the date can be cleared or changed.
+  const [draftDate, setDraftDate] = useState(today);
   const [focused, setFocused] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const input = useRef<HTMLInputElement>(null);
@@ -149,7 +150,7 @@ export function TaskBoard({ tasks, today, initialFilter }: { tasks: Task[]; toda
     requestAnimationFrame(() => requestAnimationFrame(() => setOverride(temp.id, null)));
     if (filter === "hechas") setFilter("pendientes");
     setDraft("");
-    setDraftDate("");
+    setDraftDate(today);
 
     const fd = new FormData();
     fd.set("title", title);
@@ -174,7 +175,7 @@ export function TaskBoard({ tasks, today, initialFilter }: { tasks: Task[]; toda
       {/* Composer */}
       <div>
         <div
-          className="flex items-center gap-[6px] rounded-full py-[6px] pr-[6px] pl-5 max-sm:flex-wrap max-sm:rounded-[22px] max-sm:pl-4"
+          className="flex items-center gap-[6px] rounded-full py-[6px] pr-[6px] pl-4 max-sm:flex-wrap max-sm:rounded-[22px] max-sm:pl-3"
           style={{
             background: "color-mix(in srgb, var(--color-surface) 85%, transparent)",
             backdropFilter: "blur(20px)",
@@ -182,7 +183,6 @@ export function TaskBoard({ tasks, today, initialFilter }: { tasks: Task[]; toda
             transition: "box-shadow .35s",
           }}
         >
-          <PlusCircle size={19} color="var(--color-neutral-600)" className="flex-none" />
           <label htmlFor="new-task" className="sr-only">
             Nueva tarea
           </label>
