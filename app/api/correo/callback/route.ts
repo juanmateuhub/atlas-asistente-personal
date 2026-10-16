@@ -10,7 +10,7 @@ function sameState(a: string | undefined, b: string | null) {
   return timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }
 
-/** Google redirects here after consent: store the encrypted refresh token and the starter filters. */
+/** Google redirects here after consent: store the encrypted refresh token, the granted scopes and the starter filters. */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
   const back = (aviso?: string) => {
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
   if (!data?.claims?.sub) return NextResponse.redirect(new URL("/login", origin));
 
-  let account: { refreshToken: string; email: string };
+  let account: { refreshToken: string; email: string; scopes: string };
   try {
     account = await exchangeCode(code, origin);
   } catch {
@@ -37,7 +37,14 @@ export async function GET(request: NextRequest) {
 
   const { error } = await supabase
     .from("mail_accounts")
-    .upsert({ email: account.email, refresh_token_enc: encryptToken(account.refreshToken), connected_at: new Date().toISOString() });
+    .upsert({
+      email: account.email,
+      refresh_token_enc: encryptToken(account.refreshToken),
+      scopes: account.scopes,
+      connected_at: new Date().toISOString(),
+      // A new connection may bring the calendar permission: pull it on the next visit.
+      calendar_synced_at: null,
+    });
   if (error) return back("error");
 
   // Starter junk filters, only the first time (the user may have edited them since).

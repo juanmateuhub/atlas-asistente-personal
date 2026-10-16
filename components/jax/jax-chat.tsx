@@ -12,6 +12,7 @@ import { createSSEParser } from "@/lib/jax/sse";
 import { ActionCards } from "./action-cards";
 import { Answer } from "./answer";
 import { JaxAvatar, type JaxMood } from "./jax-avatar";
+import { MemoryDialog } from "./memory-dialog";
 
 export type JaxChatMessage = {
   id: string;
@@ -23,8 +24,8 @@ export type JaxChatMessage = {
 
 const SUGGESTIONS = [
   "¿Qué tengo pendiente para hoy?",
-  "¿Cuándo es mi próximo examen?",
-  "Añade una tarea: repasar Redes mañana",
+  "Recuérdame mañana a las 9 llevar el portátil",
+  "¿Tengo algún correo importante sin leer?",
   "¿Qué tengo esta semana en el calendario?",
 ];
 
@@ -145,8 +146,9 @@ export function JaxChat({
               Pregúntame por tu día, tus exámenes o tus apuntes
             </h2>
             <p className="m-0 max-w-xl text-[14px] leading-[1.55] text-neutral-400">
-              Leo tus tareas, exámenes, eventos y apuntes, y puedo crear o editar cosas por ti. Cada cambio se puede
-              deshacer. La conversación se borra a los 7 días.
+              Leo tus tareas, exámenes, eventos, apuntes y correo. Puedo crear o editar cosas, avisarte a una hora y
+              preparar correos que tú envías. Cada cambio se puede deshacer. Lo que me cuentes de ti lo recuerdo; la
+              conversación se borra a los 7 días.
             </p>
           </div>
           <ul className={`grid w-full grid-cols-1 gap-2 ${panel ? "" : "sm:grid-cols-2"}`}>
@@ -272,6 +274,8 @@ export function JaxChat({
       </form>
       <div className="flex min-h-[30px] items-center justify-between gap-3 px-2">
         <p className="m-0 text-[12px] text-neutral-500">Jax puede equivocarse.</p>
+        <div className="flex items-center gap-1">
+        <MemoryDialog />
         {messages.length > 0 && !streaming && (
           <ActionDialog
             title="¿Empezar una conversación nueva?"
@@ -295,10 +299,11 @@ export function JaxChat({
             )}
           >
             <p className="m-0 text-[14px] text-neutral-300">
-              Se borrarán todos los mensajes de esta conversación. No se puede deshacer.
+              Se borrarán todos los mensajes de esta conversación (no lo que Jax recuerda de ti). No se puede deshacer.
             </p>
           </ActionDialog>
         )}
+        </div>
       </div>
     </div>
   );

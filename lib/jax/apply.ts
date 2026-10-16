@@ -1,6 +1,10 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { hrefFor, planAction, planUndo, type Entity, type UndoData } from "./tools";
+import { pushEventChange } from "@/lib/calendar/google-sync";
+import { googleConnection } from "@/lib/google/connection";
+import { buildRawMessage, getReplyContext, parseAddresses, sendMessage } from "@/lib/mail/gmail";
+import { ReconnectError } from "@/lib/mail/google";
+import { hrefFor, planAction, planMail, planUndo, type Entity, type UndoData } from "./tools";
 
 export type ApplyOutcome = { status: "applied" | "failed"; href?: string; error?: string };
 
@@ -25,6 +29,8 @@ export async function applyAction(supabase: SupabaseClient, actionId: string): P
     await supabase.from("jax_actions").update({ status: "failed" }).eq("id", actionId);
     return { status: "failed", error };
   };
+
+  if (action.kind === "mail.send") return sendMail(supabase, action.payload, fail);
 
   const plan = planAction(action.kind, action.payload);
   if (!plan) return fail();
@@ -75,7 +81,53 @@ export async function applyAction(supabase: SupabaseClient, actionId: string): P
   const href = plan.op === "delete" && entity === "task" ? "/tareas" : hrefFor(entity, row, subjectId);
 
   await supabase.from("jax_actions").update({ undo, href }).eq("id", actionId);
+  if (entity === "event") {
+    await pushEventChange(
+      supabase,
+      plan.op === "delete"
+        ? { op: "delete", googleId: (row.google_event_id as string | null) ?? null }
+        : { op: "upsert", id: row.id as string },
+    );
+  }
   return { status: "applied", href };
+}
+
+/** Sends a mail Jax drafted, once the user confirmed it. Replies go to the original thread. */
+async function sendMail(
+  supabase: SupabaseClient,
+  payload: unknown,
+  fail: (error?: string) => Promise<ApplyOutcome>,
+): Promise<ApplyOutcome> {
+  const draft = planMail("mail.send", payload);
+  if (!draft) return fail("Este correo no es válido.");
+  try {
+    const conn = await googleConnection(supabase);
+    if (!conn) return fail("Conecta tu correo de la UJI para enviar correos.");
+    if (draft.replyTo) {
+      const ctx = await getReplyContext(conn.token, draft.replyTo);
+      const to = parseAddresses(ctx.to);
+      if (!to) return fail("No sé a quién responder en ese correo.");
+      const raw = buildRawMessage({ to, subject: ctx.subject, body: draft.body, inReplyTo: ctx.messageId, references: ctx.references });
+      await sendMessage(conn.token, raw, ctx.threadId);
+    } else {
+      await sendMessage(conn.token, buildRawMessage({ to: draft.to, subject: draft.subject, body: draft.body }));
+    }
+    return { status: "applied" };
+  } catch (err) {
+    if (err instanceof ReconnectError) return fail("Google ha caducado el acceso. Vuelve a conectar tu correo.");
+    return fail("Gmail no ha podido enviar el correo. Inténtalo de nuevo.");
+  }
+}
+
+/** Leaves a pending change (a mail draft) unapplied. */
+export async function dismissAction(supabase: SupabaseClient, actionId: string): Promise<{ status: "dismissed" | "failed"; error?: string }> {
+  const { data } = await supabase
+    .from("jax_actions")
+    .update({ status: "dismissed", resolved_at: new Date().toISOString() })
+    .eq("id", actionId)
+    .eq("status", "pending")
+    .select("id");
+  return data?.length ? { status: "dismissed" } : { status: "failed", error: "Este cambio ya no está pendiente." };
 }
 
 export type UndoOutcome = { status: "undone" | "applied"; error?: string };
@@ -93,15 +145,24 @@ export async function undoAction(supabase: SupabaseClient, actionId: string): Pr
 
   const plan = planUndo(action.kind, action.undo);
   let ok = false;
+  let googleId: string | null = null;
   if (plan?.op === "delete") {
-    const { error } = await supabase.from(plan.table).delete().eq("id", plan.id);
+    const { data, error } = await supabase.from(plan.table).delete().eq("id", plan.id).select("*");
     ok = !error;
+    googleId = (data?.[0] as { google_event_id?: string | null } | undefined)?.google_event_id ?? null;
   } else if (plan?.op === "update") {
     const { data, error } = await supabase.from(plan.table).update(plan.changes).eq("id", plan.id).select("id");
     ok = !error && !!data?.length;
   } else if (plan?.op === "insert") {
     const { error } = await supabase.from(plan.table).insert(plan.values);
     ok = !error;
+  }
+
+  if (ok && plan && plan.table === "events") {
+    await pushEventChange(
+      supabase,
+      plan.op === "delete" ? { op: "delete", googleId } : { op: "upsert", id: plan.op === "update" ? plan.id : (plan.values.id as string) },
+    );
   }
 
   if (!ok) {

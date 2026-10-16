@@ -11,6 +11,8 @@ type EventRow = {
   end_time: string | null;
   location: string | null;
   notes: string | null;
+  google_calendar: string;
+  google_calendar_name: string | null;
 };
 
 const hhmm = (t: string | null) => (t ? t.slice(0, 5) : null);
@@ -24,6 +26,7 @@ function toEvent(row: EventRow): CalendarEvent {
     endTime: hhmm(row.end_time),
     location: row.location,
     notes: row.notes,
+    calendarName: row.google_calendar === "primary" ? null : (row.google_calendar_name ?? "Google Calendar"),
   };
 }
 
@@ -38,7 +41,7 @@ export async function listAgenda(from: string, to: string): Promise<AgendaItem[]
   const [events, tasks, exams] = await Promise.all([
     supabase
       .from("events")
-      .select("id,title,event_date,start_time,end_time,location,notes")
+      .select("id,title,event_date,start_time,end_time,location,notes,google_calendar,google_calendar_name")
       .gte("event_date", from)
       .lte("event_date", to)
       .limit(1000),

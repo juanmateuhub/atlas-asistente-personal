@@ -11,7 +11,9 @@ import {
   MESSAGE_MAX,
   countRecentQuestions,
   listConversation,
+  mailPreview,
   pruneOldMessages,
+  type JaxActionView,
   type JaxMessage,
 } from "@/lib/jax/conversation";
 import { applyAction } from "@/lib/jax/apply";
@@ -90,6 +92,7 @@ export async function GET() {
  *   error  { message }
  * Tool calls become validated jax_actions that are applied right away (the user
  * chose this); each one keeps undo data so it can be reverted from the chat.
+ * Mail drafts are the exception: they stay pending until the user taps Enviar.
  */
 export async function POST(request: Request) {
   const trace = tracer();
@@ -136,7 +139,11 @@ export async function POST(request: Request) {
       retrieveMail(message),
     ]);
     retrieved = { ...r, data: { ...r.data, mail } };
-    system = systemPrompt(buildDataBlock(r.data));
+    // Emails can be answered by ref (m1…), like the other items.
+    if (mail?.status === "ok") {
+      mail.items.forEach((m, i) => r.refs.m.set(`m${i + 1}`, { id: m.id, label: m.subject, values: { from: m.fromAddress } }));
+    }
+    system = systemPrompt(buildDataBlock(retrieved.data));
     history = normalizeHistory(toTurns(conversation));
   } catch (err) {
     trace.fail("retrieval", err);
@@ -176,7 +183,11 @@ export async function POST(request: Request) {
           content += `${content ? "\n\n" : ""}No he podido preparar algún cambio: ${[...new Set(rejected)].join(" ")}`;
         }
         if (!content && proposals.length) {
-          content = proposals.length === 1 ? "Hecho." : "Hecho, aquí tienes los cambios.";
+          content = proposals.every((p) => p.kind === "mail.send")
+            ? "Aquí tienes el borrador. Revísalo y pulsa Enviar cuando quieras."
+            : proposals.length === 1
+              ? "Hecho."
+              : "Hecho, aquí tienes los cambios.";
         }
         if (!content) throw new ProviderError("empty", "blocked");
         const citations = extractCitations(content, available);
@@ -188,16 +199,20 @@ export async function POST(request: Request) {
           .single();
         if (error) throw error;
 
-        const actions: { id: string; kind: string; summary: string; status: string; href: string | null; error?: string }[] = [];
+        const actions: (JaxActionView & { error?: string })[] = [];
         if (proposals.length) {
           const { data: rows, error: actionsError } = await supabase
             .from("jax_actions")
             .insert(proposals.map((p) => ({ message_id: saved.id, kind: p.kind, payload: p.payload, summary: p.summary })))
-            .select("id,kind,summary");
+            .select("id,kind,summary,payload");
           if (actionsError) throw actionsError;
           stage = "apply actions";
           // In order: a later change may depend on an earlier one.
-          for (const row of rows) {
+          for (const { payload, ...row } of rows) {
+            if (row.kind === "mail.send") {
+              actions.push({ ...row, status: "pending", href: null, mail: mailPreview(row.kind, payload) });
+              continue;
+            }
             const outcome = await applyAction(supabase, row.id);
             actions.push({ ...row, status: outcome.status, href: outcome.href ?? null, error: outcome.error });
           }

@@ -68,7 +68,7 @@ describe("agenda", () => {
     date: "2026-10-20",
     time,
     title: id,
-    event: { id, title: id, date: "2026-10-20", startTime: time, endTime: null, location: null, notes: null },
+    event: { id, title: id, date: "2026-10-20", startTime: time, endTime: null, location: null, notes: null, calendarName: null },
   });
   const task: AgendaItem = { kind: "task", id: "t", date: "2026-10-20", time: null, title: "t", done: false };
   const exam: AgendaItem = { kind: "exam", id: "x", date: "2026-10-20", time: null, title: "x", subjectId: "s", subjectName: "Redes" };

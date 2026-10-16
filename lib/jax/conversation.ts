@@ -8,7 +8,26 @@ export const MESSAGE_MAX = 2000;
 export const DAILY_MESSAGE_LIMIT = 150;
 
 export type JaxActionStatus = "pending" | "applied" | "dismissed" | "failed" | "undone";
-export type JaxActionView = { id: string; kind: string; summary: string; status: JaxActionStatus; href: string | null };
+/** mail: the draft, so the user can read it before confirming. */
+export type JaxActionView = {
+  id: string;
+  kind: string;
+  summary: string;
+  status: JaxActionStatus;
+  href: string | null;
+  mail?: { to: string[]; subject: string; body: string };
+};
+
+/** The preview of a mail.send payload (other payloads are never sent to the browser). */
+export function mailPreview(kind: string, payload: unknown): JaxActionView["mail"] {
+  if (kind !== "mail.send") return undefined;
+  const m = (payload as { mail?: { to?: unknown; subject?: unknown; body?: unknown } } | null)?.mail;
+  return {
+    to: Array.isArray(m?.to) ? m.to.filter((a): a is string => typeof a === "string") : [],
+    subject: typeof m?.subject === "string" ? m.subject : "",
+    body: typeof m?.body === "string" ? m.body : "",
+  };
+}
 
 export type JaxMessage = {
   id: string;
@@ -26,7 +45,7 @@ function cutoff(days: number) {
 export async function listConversation(supabase: SupabaseClient, limit = 100): Promise<JaxMessage[]> {
   const { data, error } = await supabase
     .from("jax_messages")
-    .select("id,role,content,citations,jax_actions(id,kind,summary,status,href,created_at)")
+    .select("id,role,content,citations,jax_actions(id,kind,summary,status,href,payload,created_at)")
     .gte("created_at", cutoff(RETENTION_DAYS))
     .order("position", { ascending: false })
     .limit(limit);
@@ -36,9 +55,9 @@ export async function listConversation(supabase: SupabaseClient, limit = 100): P
     role: m.role as JaxMessage["role"],
     content: m.content,
     citations: Array.isArray(m.citations) ? (m.citations as Citation[]) : [],
-    actions: ((m.jax_actions ?? []) as (JaxActionView & { created_at: string })[])
+    actions: ((m.jax_actions ?? []) as (JaxActionView & { created_at: string; payload: unknown })[])
       .toSorted((a, b) => a.created_at.localeCompare(b.created_at))
-      .map(({ id, kind, summary, status, href }) => ({ id, kind, summary, status, href })),
+      .map(({ id, kind, summary, status, href, payload }) => ({ id, kind, summary, status, href, mail: mailPreview(kind, payload) })),
   }));
 }
 

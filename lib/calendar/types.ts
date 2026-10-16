@@ -8,6 +8,8 @@ export type CalendarEvent = {
   endTime: string | null;
   location: string | null;
   notes: string | null;
+  /** Name of the Google calendar it comes from when that is not the primary one (e.g. "Les teues classes"): read-only. */
+  calendarName: string | null;
 };
 
 /** Anything shown on a calendar day, from events, tasks or exams. */

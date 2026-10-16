@@ -1,5 +1,5 @@
 /**
- * Gmail REST helpers (read, plus marking a message as read). Parsing is kept pure (and tested); the fetchers
+ * Gmail REST helpers (read, marking a message as read, sending what the user confirmed). Parsing is kept pure (and tested); the fetchers
  * take a short-lived access token obtained server-side.
  */
 
@@ -194,4 +194,73 @@ export function messageText(m: Pick<MailMessage, "html" | "text">): string {
 /** Gmail message ids are hex strings. */
 export function isMessageId(value: unknown): value is string {
   return typeof value === "string" && /^[0-9a-f]{8,32}$/i.test(value);
+}
+
+// --- sending -------------------------------------------------------------------------
+
+const ADDRESS = /^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/;
+
+/** "a@uji.es, b@uji.es" → addresses, or null if any is not a plain address (no names, no header tricks). */
+export function parseAddresses(value: string): string[] | null {
+  const list = value
+    .split(/[,;]/)
+    .map((a) => a.trim())
+    .filter(Boolean);
+  if (list.length === 0 || list.length > 10) return null;
+  return list.every((a) => a.length <= 254 && ADDRESS.test(a)) ? list : null;
+}
+
+/** RFC 2047 encoded word, so accents survive in the subject. */
+function encodeHeader(value: string): string {
+  const clean = value.replace(/[\r\n]+/g, " ").trim();
+  return /^[\x20-\x7e]*$/.test(clean) ? clean : `=?UTF-8?B?${Buffer.from(clean, "utf8").toString("base64")}?=`;
+}
+
+export type OutgoingMail = {
+  to: string[];
+  subject: string;
+  body: string;
+  /** Message-ID of the message being answered, and its References chain. */
+  inReplyTo?: string;
+  references?: string;
+};
+
+/** A plain-text UTF-8 message, base64url as Gmail's `raw` expects. */
+export function buildRawMessage(m: OutgoingMail): string {
+  const oneLine = (s: string) => s.replace(/[\r\n]+/g, " ").trim();
+  const headers = [
+    `To: ${m.to.join(", ")}`,
+    `Subject: ${encodeHeader(m.subject)}`,
+    "MIME-Version: 1.0",
+    "Content-Type: text/plain; charset=UTF-8",
+    "Content-Transfer-Encoding: base64",
+  ];
+  if (m.inReplyTo) headers.push(`In-Reply-To: ${oneLine(m.inReplyTo)}`);
+  if (m.inReplyTo || m.references) headers.push(`References: ${oneLine([m.references, m.inReplyTo].filter(Boolean).join(" "))}`);
+  const body = Buffer.from(m.body.replace(/\r?\n/g, "\r\n"), "utf8")
+    .toString("base64")
+    .replace(/.{76}/g, "$&\r\n");
+  return Buffer.from(`${headers.join("\r\n")}\r\n\r\n${body}`, "utf8").toString("base64url");
+}
+
+export type ReplyContext = { threadId: string; to: string; subject: string; messageId: string; references: string };
+
+/** What answering a message needs: who to write to, its thread and its ids. */
+export async function getReplyContext(token: string, id: string): Promise<ReplyContext> {
+  const fields = ["From", "Reply-To", "Subject", "Message-ID", "References"].map((h) => `metadataHeaders=${h}`).join("&");
+  const m = await call<GmailMessage>(token, `/messages/${encodeURIComponent(id)}?format=metadata&${fields}`);
+  const headers = m.payload?.headers;
+  const replyTo = header(headers, "Reply-To") || header(headers, "From");
+  const subject = header(headers, "Subject").trim();
+  return {
+    threadId: m.threadId,
+    to: parseFrom(replyTo.split(",")[0] ?? "").address,
+    subject: /^re:/i.test(subject) ? subject : `Re: ${subject}`,
+    messageId: header(headers, "Message-ID"),
+    references: header(headers, "References"),
+  };
+}
+
+export async function sendMessage(token: string, raw: string, threadId?: string): Promise<{ id: string }> {
+  return call<{ id: string }>(token, "/messages/send", { method: "POST", body: { raw, ...(threadId && { threadId }) } });
 }

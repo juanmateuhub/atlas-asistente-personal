@@ -63,6 +63,7 @@ export function MailToItem({ subject, from, link, today }: { subject: string; fr
             endTime: null,
             location: null,
             notes,
+            calendarName: null,
           }}
         />
       </ActionDialog>

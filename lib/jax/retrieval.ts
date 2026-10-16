@@ -5,11 +5,15 @@ import { addDays } from "./dates";
 import { docToText } from "./doc-text";
 import { chunkText, keywords, searchPages, type PageHit, type SearchablePage } from "./search";
 import { emptyRefs, type RefMap } from "./tools";
+import { instantToZoned } from "@/lib/reminders/time";
+
+/** Long-term memory is small by design: every fact goes into every prompt. */
+export const MEMORY_LIMIT = 100;
 
 /**
  * Deterministic retrieval of the caller's data. Runs with the user's Supabase
  * client, so RLS limits every query to their own rows. Every item the model may
- * change gets a short ref (t1, e1, x1, s1, tp1) that maps back to its UUID.
+ * change gets a short ref (t1, e1, x1, s1, tp1, r1, me1) that maps back to its UUID.
  */
 export async function retrieveData(
   supabase: SupabaseClient,
@@ -18,7 +22,7 @@ export async function retrieveData(
   now: string,
 ): Promise<{ data: JaxData; refs: RefMap }> {
   const terms = keywords(question);
-  const [tasks, exams, events, subjects, pages, files] = await Promise.all([
+  const [tasks, exams, events, subjects, pages, files, reminders, memories] = await Promise.all([
     supabase
       .from("tasks")
       .select("id,title,due_date,priority,status")
@@ -33,7 +37,7 @@ export async function retrieveData(
       .limit(40),
     supabase
       .from("events")
-      .select("id,title,event_date,start_time,end_time,location")
+      .select("id,title,event_date,start_time,end_time,location,google_calendar,google_calendar_name")
       .gte("event_date", addDays(today, -7))
       .lte("event_date", addDays(today, 60))
       .order("event_date")
@@ -54,9 +58,11 @@ export async function retrieveData(
           .textSearch("search", terms.join(" or "), { type: "websearch", config: "spanish" })
           .limit(3)
       : Promise.resolve({ data: [], error: null }),
+    supabase.from("reminders").select("id,title,remind_at").is("sent_at", null).order("remind_at").limit(30),
+    supabase.from("jax_memories").select("id,content").order("created_at").limit(MEMORY_LIMIT),
   ]);
 
-  const failed = [tasks, exams, events, subjects, pages, files].find((r) => r.error);
+  const failed = [tasks, exams, events, subjects, pages, files, reminders, memories].find((r) => r.error);
   if (failed) throw new Error("retrieval failed");
 
   const hhmm = (t: string | null) => (t ? t.slice(0, 5) : null);
@@ -91,8 +97,12 @@ export async function retrieveData(
     };
   });
 
-  const eventItems = (events.data ?? []).map((e, i) => {
-    const ref = `e${i + 1}`;
+  let eventCounter = 0;
+  const eventItems = (events.data ?? []).map((e) => {
+    const calendar = e.google_calendar === "primary" ? null : (e.google_calendar_name ?? "Google Calendar");
+    const base = { title: e.title, date: e.event_date, startTime: hhmm(e.start_time), endTime: hhmm(e.end_time), location: e.location, calendar };
+    if (calendar) return { ref: null, ...base };
+    const ref = `e${++eventCounter}`;
     refs.e.set(ref, {
       id: e.id,
       label: e.title,
@@ -104,7 +114,7 @@ export async function retrieveData(
         location: e.location,
       },
     });
-    return { ref, title: e.title, date: e.event_date, startTime: hhmm(e.start_time), endTime: hhmm(e.end_time), location: e.location };
+    return { ref, ...base };
   });
 
   let topicCounter = 0;
@@ -119,6 +129,19 @@ export async function retrieveData(
         return { ref: topicRef, title: t.title };
       });
     return { ref, name: s.name, description: s.description, topics };
+  });
+
+  const reminderItems = (reminders.data ?? []).map((r, i) => {
+    const ref = `r${i + 1}`;
+    refs.r.set(ref, { id: r.id, label: r.title, values: { title: r.title } });
+    const at = instantToZoned(r.remind_at);
+    return { ref, title: r.title, date: at.date, time: at.time };
+  });
+
+  const memoryItems = (memories.data ?? []).map((m, i) => {
+    const ref = `me${i + 1}`;
+    refs.me.set(ref, { id: m.id, label: m.content, values: { content: m.content } });
+    return { ref, content: m.content };
   });
 
   const searchable: SearchablePage[] = (pages.data ?? []).map((p) => {
@@ -141,6 +164,8 @@ export async function retrieveData(
       exams: examItems,
       events: eventItems,
       subjects: subjectItems,
+      reminders: reminderItems,
+      memories: memoryItems,
       notes: rankSources(searchPages(searchable, question), documentHits(files.data ?? [], question)),
     },
     refs,

@@ -13,7 +13,7 @@ const CHECK_MS = 520;
 const LEAVE_MS = 860;
 
 /**
- * Due/overdue tasks on Inicio. Completing one pops the check, slides the row
+ * The next tasks on Inicio (today, overdue, then coming). Completing one pops the check, slides the row
  * away and offers "Deshacer", like Tareas.
  */
 export function TodayTasks({ tasks, today, empty }: { tasks: Task[]; today: string; empty: React.ReactNode }) {

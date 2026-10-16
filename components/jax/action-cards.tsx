@@ -3,7 +3,9 @@
 import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowUpRight,
+  BellRing,
   BookOpen,
+  Brain,
   CalendarClock,
   Check,
   CheckSquare,
@@ -11,6 +13,7 @@ import {
   GraduationCap,
   Layers,
   RotateCcw,
+  Send,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -25,11 +28,17 @@ const ICON = {
   subject: BookOpen,
   topic: Layers,
   page: FileText,
+  reminder: BellRing,
+  memory: Brain,
+  mail: Send,
 } as const;
 
 type CardState = { status: JaxActionStatus; href: string | null; error?: string };
 
-/** Changes Jax made under its answer: each one links to the result and can be undone. */
+/**
+ * Changes Jax made under its answer: each one links to the result and can be
+ * undone. Mail drafts are shown in full and only go out when the user taps Enviar.
+ */
 export function ActionCards({ actions }: { actions: (JaxActionView & { error?: string })[] }) {
   const [state, setState] = useState(
     () => new Map<string, CardState>(actions.map((a) => [a.id, { status: a.status, href: a.href, error: a.error }])),
@@ -37,7 +46,7 @@ export function ActionCards({ actions }: { actions: (JaxActionView & { error?: s
   const [busy, setBusy] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
-  function run(id: string, decision: "apply" | "undo") {
+  function run(id: string, decision: "apply" | "undo" | "dismiss") {
     setBusy(id);
     startTransition(async () => {
       const result = await resolveJaxAction(id, decision);
@@ -57,6 +66,7 @@ export function ActionCards({ actions }: { actions: (JaxActionView & { error?: s
         const Icon = isDelete ? Trash2 : (ICON[entity] ?? CheckSquare);
         const current = state.get(action.id) ?? { status: action.status, href: action.href };
         const done = current.status === "applied";
+        const isMail = action.kind === "mail.send";
         const reverted = current.status === "undone" || current.status === "dismissed";
 
         return (
@@ -66,7 +76,7 @@ export function ActionCards({ actions }: { actions: (JaxActionView & { error?: s
             initial={{ opacity: 0, y: 8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ delay: index * 0.06, type: "spring", stiffness: 420, damping: 32 }}
-            className={`flex items-center gap-3 rounded-atlas border px-4 py-3 ${
+            className={`flex flex-wrap items-center gap-3 rounded-atlas border px-4 py-3 ${
               done ? "border-accent/30 bg-line/10" : "border-line"
             }`}
           >
@@ -98,13 +108,15 @@ export function ActionCards({ actions }: { actions: (JaxActionView & { error?: s
                 {current.error ? (
                   <span className="text-red-700">{current.error}</span>
                 ) : done ? (
-                  "Hecho"
+                  isMail ? "Enviado" : "Hecho"
                 ) : current.status === "undone" ? (
                   "Deshecho"
                 ) : current.status === "dismissed" ? (
                   "Descartado"
                 ) : current.status === "failed" ? (
                   <span className="text-red-700">No se pudo aplicar</span>
+                ) : isMail ? (
+                  "Borrador: revísalo antes de enviarlo"
                 ) : (
                   "Pendiente de confirmar"
                 )}
@@ -112,7 +124,7 @@ export function ActionCards({ actions }: { actions: (JaxActionView & { error?: s
             </div>
 
             <div className="flex shrink-0 items-center gap-1">
-              {done && current.href && !isDelete && (
+              {done && current.href && !isDelete && entity !== "memory" && (
                 <Link
                   href={current.href}
                   className="pressable inline-flex items-center gap-1 rounded-atlas px-2.5 py-1.5 text-xs font-medium text-accent-ink hover:bg-line/30"
@@ -121,7 +133,7 @@ export function ActionCards({ actions }: { actions: (JaxActionView & { error?: s
                   <ArrowUpRight aria-hidden className="size-3.5" />
                 </Link>
               )}
-              {done && (
+              {done && !isMail && (
                 <button
                   type="button"
                   disabled={busy === action.id}
@@ -132,7 +144,7 @@ export function ActionCards({ actions }: { actions: (JaxActionView & { error?: s
                   Deshacer
                 </button>
               )}
-              {current.status === "pending" && (
+              {current.status === "pending" && !isMail && (
                 <button
                   type="button"
                   disabled={busy === action.id}
@@ -144,9 +156,66 @@ export function ActionCards({ actions }: { actions: (JaxActionView & { error?: s
                 </button>
               )}
             </div>
+            {isMail && action.mail && (
+              <MailDraft
+                mail={action.mail}
+                pending={current.status === "pending"}
+                busy={busy === action.id}
+                onSend={() => run(action.id, "apply")}
+                onDiscard={() => run(action.id, "dismiss")}
+              />
+            )}
           </motion.li>
         );
       })}
     </ul>
+  );
+}
+
+/** The full draft under a mail card, with the only buttons that send it. */
+function MailDraft({
+  mail,
+  pending,
+  busy,
+  onSend,
+  onDiscard,
+}: {
+  mail: NonNullable<JaxActionView["mail"]>;
+  pending: boolean;
+  busy: boolean;
+  onSend: () => void;
+  onDiscard: () => void;
+}) {
+  return (
+    <div className="flex w-full flex-col gap-3 rounded-[14px] bg-surface p-4">
+      <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[13px]">
+        <dt className="text-neutral-500">Para</dt>
+        <dd className="m-0 [overflow-wrap:anywhere]">{mail.to.join(", ") || "El remitente del correo"}</dd>
+        <dt className="text-neutral-500">Asunto</dt>
+        <dd className="m-0 font-medium [overflow-wrap:anywhere]">{mail.subject}</dd>
+      </dl>
+      <p className="m-0 max-h-64 overflow-y-auto text-[14px] leading-[1.55] whitespace-pre-wrap text-neutral-300">{mail.body}</p>
+      {pending && (
+        <div className="flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={onDiscard}
+            disabled={busy}
+            className="pressable inline-flex h-9 items-center rounded-full bg-step px-4 text-[13.5px] font-medium hover:bg-neutral-800"
+          >
+            Descartar
+          </button>
+          <button
+            type="button"
+            onClick={onSend}
+            disabled={busy}
+            className="pressable inline-flex h-9 items-center gap-[6px] rounded-full bg-accent px-4 text-[13.5px] font-semibold text-on-accent hover:bg-accent-500"
+          >
+            <Send aria-hidden className="size-3.5" />
+            {busy ? "Enviando…" : "Enviar"}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

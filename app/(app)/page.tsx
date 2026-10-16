@@ -2,12 +2,18 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { ArrowUpRight, CaretRight, FileText, MoonStars, Plus, Sun, SunHorizon } from "@phosphor-icons/react/ssr";
 import { Suspense } from "react";
+import { MailSuggestions } from "@/components/home/mail-suggestions";
+import { RemindersCard } from "@/components/home/reminders-card";
 import { TodayTasks } from "@/components/home/today-tasks";
 import { UserMenu } from "@/components/shell/user-menu";
 import { ExamRow } from "@/components/university/exam-row";
 import { countDay, daySentence, formatLongDate, greeting, hourIn } from "@/lib/home/summary";
-import { daysBetween, todayIn } from "@/lib/tasks/dates";
-import { listOpenTasksDueBy } from "@/lib/tasks/queries";
+import { timeIn } from "@/lib/jax/dates";
+import { listMailSuggestions } from "@/lib/mail/queries";
+import { listReminders } from "@/lib/reminders/queries";
+import { instantToZoned } from "@/lib/reminders/time";
+import { daysBetween, relativeDue, todayIn } from "@/lib/tasks/dates";
+import { listNextOpenTasks } from "@/lib/tasks/queries";
 import { editedAgo } from "@/lib/university/format";
 import { listRecentPages, listUpcomingExams } from "@/lib/university/queries";
 import type { ExamSummary } from "@/lib/university/types";
@@ -42,11 +48,17 @@ async function Dashboard() {
   const today = todayIn(now);
 
   // Inicio derives from the modules; it stores nothing of its own.
-  const [tasks, exams, pages] = await Promise.all([
-    listOpenTasksDueBy(today),
+  const [tasks, exams, pages, reminders, suggestions] = await Promise.all([
+    listNextOpenTasks(today),
     listUpcomingExams(today, 3),
     listRecentPages(3),
+    listReminders(now),
+    listMailSuggestions(),
   ]);
+  const reminderViews = reminders.map((r) => {
+    const at = instantToZoned(r.remindAt);
+    return { id: r.id, title: r.title, day: relativeDue(at.date, today), time: at.time, past: Date.parse(r.remindAt) <= now.getTime() };
+  });
   const counts = countDay(tasks, exams, today);
   const hello = greeting(hourIn(now));
   const TimeIcon = TIME_ICON[hello as keyof typeof TIME_ICON] ?? Sun;
@@ -64,18 +76,19 @@ async function Dashboard() {
       </header>
 
       <div className="grid items-start gap-5 [grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr))]">
+        <MailSuggestions suggestions={suggestions} />
         <section
           aria-labelledby="home-tasks"
           className="flex flex-col gap-3 rounded-[22px] bg-surface p-6"
           style={{ animation: rise(0.08) }}
         >
-          <CardHeading id="home-tasks" title="Para hoy" href="/tareas" linkLabel="Ver todas las tareas" />
+          <CardHeading id="home-tasks" title="Próximas tareas" href="/tareas" linkLabel="Ver todas las tareas" />
           <TodayTasks
             tasks={tasks}
             today={today}
             empty={
               <div className="flex flex-col items-start gap-4 py-1">
-                <p className="m-0 text-[16px] leading-[1.5] text-neutral-300">No tienes tareas para hoy ni atrasadas.</p>
+                <p className="m-0 text-[16px] leading-[1.5] text-neutral-300">No tienes tareas pendientes con fecha.</p>
                 <Link
                   href="/tareas"
                   className="pressable inline-flex h-11 items-center gap-2 rounded-full bg-accent px-5 text-[15px] font-semibold text-on-accent transition-[background,scale] hover:bg-accent-500"
@@ -137,6 +150,10 @@ async function Dashboard() {
             </div>
           )}
         </section>
+
+        <div style={{ animation: rise(0.18) }}>
+          <RemindersCard reminders={reminderViews} today={today} nowTime={timeIn(now)} />
+        </div>
 
         {next && <Countdown exam={next} today={today} />}
       </div>

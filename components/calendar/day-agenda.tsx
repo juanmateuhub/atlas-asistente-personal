@@ -115,9 +115,7 @@ function AgendaRow({ item }: { item: AgendaItem }) {
         ? done
           ? "Tarea hecha"
           : "Tarea"
-        : item.event.location
-          ? `Evento · ${item.event.location}`
-          : "Evento";
+        : [item.event.calendarName ?? "Evento", item.event.location].filter(Boolean).join(" · ");
 
   const body = (
     <>
@@ -154,6 +152,9 @@ function AgendaRow({ item }: { item: AgendaItem }) {
       </Link>
     );
   }
+
+  // From another Google calendar (e.g. the UJI timetable): shown, never edited here.
+  if (item.event.calendarName) return <div className={rowClass}>{body}</div>;
 
   return (
     <div className={rowClass}>

@@ -2,10 +2,14 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { CalendarView } from "@/components/calendar/calendar-view";
+import { GoogleCalendarNotice } from "@/components/calendar/google-notice";
 import { PageHeader } from "@/components/ui/page-header";
+import { syncCalendarIfStale } from "@/lib/calendar/google-sync";
 import { monthGrid, monthOf, parseDay, parseMonth } from "@/lib/calendar/grid";
 import { listAgenda } from "@/lib/calendar/queries";
 import { todayIn } from "@/lib/tasks/dates";
+import { getCurrentUser } from "@/lib/auth/user";
+import { createClient } from "@/lib/supabase/server";
 import { listSubjectOptions } from "@/lib/university/queries";
 
 export const metadata: Metadata = { title: "Calendario" };
@@ -31,17 +35,24 @@ async function Calendar({ searchParams }: Pick<PageProps<"/calendario">, "search
   const fallbackDay = month === monthOf(today) ? today : `${month}-01`;
   const day = parseDay(params.dia, fallbackDay);
 
+  // Google Calendar changes first, so the month already shows them.
+  await getCurrentUser();
+  const sync = await syncCalendarIfStale(await createClient(), today);
+
   const weeks = monthGrid(month);
   const [items, subjects] = await Promise.all([listAgenda(weeks[0][0], weeks[5][6]), listSubjectOptions()]);
 
   return (
-    <CalendarView
-      month={month}
-      initialDay={monthOf(day) === month ? day : fallbackDay}
-      today={today}
-      items={items}
-      subjects={subjects}
-    />
+    <>
+      <GoogleCalendarNotice status={sync} />
+      <CalendarView
+        month={month}
+        initialDay={monthOf(day) === month ? day : fallbackDay}
+        today={today}
+        items={items}
+        subjects={subjects}
+      />
+    </>
   );
 }
 

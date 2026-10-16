@@ -5,30 +5,43 @@
  * user couldn't store by hand.
  *
  * The model refers to existing items by short refs from the DATOS block
- * (t1, e1, x1, s1, tp1); refs resolve to UUIDs here, so invented ids fail.
+ * (t1, e1, x1, s1, tp1, r1, me1, m1); refs resolve to ids here, so invented ids fail.
+ *
+ * Sending mail is the one change that is never applied on its own: it can't be
+ * undone and it reaches other people, so it waits for the user's confirmation.
  */
 import { parseEventInput } from "@/lib/calendar/validation";
+import { parseAddresses } from "@/lib/mail/gmail";
+import { instantToZoned } from "@/lib/reminders/time";
+import { parseReminderInput } from "@/lib/reminders/validation";
 import { PRIORITIES, STATUSES } from "@/lib/tasks/types";
 import { isValidDate, parseTaskInput } from "@/lib/tasks/validation";
 import { parseExamInput, parseSubjectInput, parseTitle, parseDoc } from "@/lib/university/validation";
 import { markdownToDoc } from "./markdown-doc";
 
-export type Entity = "task" | "event" | "exam" | "subject" | "topic" | "page";
-export type ActionKind = `${Entity}.${"create" | "update" | "delete"}`;
+export type Entity = "task" | "event" | "exam" | "subject" | "topic" | "page" | "reminder" | "memory";
+export type ActionKind = `${Entity}.${"create" | "update" | "delete"}` | "mail.send";
+
+/** A message Jax wrote; replyTo is the Gmail id of the message being answered. */
+export type MailDraft = { to: string[]; subject: string; body: string; replyTo?: string };
+
+export const MEMORY_MAX = 300;
+export const MAIL_SUBJECT_MAX = 200;
+export const MAIL_BODY_MAX = 10_000;
 
 export type Proposal = {
   kind: ActionKind;
-  /** create: { values }, update: { id, changes }, delete: { id } — DB column names. */
-  payload: { values?: Record<string, unknown>; id?: string; changes?: Record<string, unknown> };
+  /** create: { values }, update: { id, changes }, delete: { id } — DB column names. mail.send: { mail }. */
+  payload: { values?: Record<string, unknown>; id?: string; changes?: Record<string, unknown>; mail?: MailDraft };
   summary: string;
 };
 
 /** Snapshot of existing items the model may reference (from retrieval). */
 export type RefItem = { id: string; label: string; values: Record<string, string | number | null> };
-export type RefMap = Record<"t" | "e" | "x" | "s" | "tp", Map<string, RefItem>>;
+export type RefMap = Record<"t" | "e" | "x" | "s" | "tp" | "r" | "me" | "m", Map<string, RefItem>>;
 
 export function emptyRefs(): RefMap {
-  return { t: new Map(), e: new Map(), x: new Map(), s: new Map(), tp: new Map() };
+  return { t: new Map(), e: new Map(), x: new Map(), s: new Map(), tp: new Map(), r: new Map(), me: new Map(), m: new Map() };
 }
 
 type Result = { ok: true; proposal: Proposal } | { ok: false; error: string };
@@ -115,6 +128,50 @@ export const TOOL_DECLARATIONS = [
     description:
       "Crea una página de apuntes en un tema existente (ref tpN). content admite párrafos, listas con '- ' y **negrita**.",
     parametersJsonSchema: schema({ topic: str, title: str, content: str }, ["topic", "title"]),
+  },
+  {
+    name: "crear_recordatorio",
+    description: "Programa un aviso en el móvil del usuario a una fecha y hora (hora de Madrid).",
+    parametersJsonSchema: schema(
+      { text: { type: "string", description: "Qué hay que recordar, en pocas palabras" }, date, time },
+      ["text", "date", "time"],
+    ),
+  },
+  {
+    name: "borrar_recordatorio",
+    description: "Cancela un recordatorio existente (ref rN).",
+    parametersJsonSchema: schema({ reminder: str }, ["reminder"]),
+  },
+  {
+    name: "recordar",
+    description:
+      "Guarda en tu memoria a largo plazo un dato duradero sobre el usuario (preferencias, horarios, personas, metas). Una frase corta en tercera persona.",
+    parametersJsonSchema: schema(
+      { fact: { type: "string", description: "P. ej. «Prefiere estudiar por las mañanas»" } },
+      ["fact"],
+    ),
+  },
+  {
+    name: "olvidar",
+    description: "Borra un dato de tu memoria (ref meN).",
+    parametersJsonSchema: schema({ memory: str }, ["memory"]),
+  },
+  {
+    name: "enviar_correo",
+    description: "Prepara un correo nuevo desde la cuenta UJI del usuario. No se envía hasta que el usuario lo confirme.",
+    parametersJsonSchema: schema(
+      {
+        to: { type: "string", description: "Direcciones separadas por comas" },
+        subject: str,
+        body: { type: "string", description: "Texto del correo, con saludo y despedida" },
+      },
+      ["to", "subject", "body"],
+    ),
+  },
+  {
+    name: "responder_correo",
+    description: "Prepara la respuesta a un correo de CORREO UJI (ref mN). No se envía hasta que el usuario lo confirme.",
+    parametersJsonSchema: schema({ mail: str, body: { type: "string", description: "Texto de la respuesta" } }, ["mail", "body"]),
   },
 ] as const;
 
@@ -359,6 +416,77 @@ export function toProposal(name: string, rawArgs: unknown, refs: RefMap): Result
         },
       };
     }
+
+    case "crear_recordatorio": {
+      const p = parseReminderInput(form({ title: args.text, date: args.date, time: args.time }));
+      if (!p.ok) return fail(p.error);
+      const at = instantToZoned(p.value.remindAt);
+      return {
+        ok: true,
+        proposal: {
+          kind: "reminder.create",
+          payload: { values: { title: p.value.title, remind_at: p.value.remindAt } },
+          summary: `Recordarte ${quote(p.value.title)} el ${fmtDate(at.date)} a las ${at.time}`,
+        },
+      };
+    }
+    case "borrar_recordatorio": {
+      const item = resolve(refs, "r", args.reminder);
+      if (!item) return fail("No encuentro ese recordatorio.");
+      return {
+        ok: true,
+        proposal: { kind: "reminder.delete", payload: { id: item.id }, summary: `Cancelar el recordatorio ${quote(item.label)}` },
+      };
+    }
+
+    case "recordar": {
+      const fact = text(args.fact).replace(/\s+/g, " ").trim();
+      if (fact.length < 2) return fail("No sé qué tengo que recordar.");
+      if (fact.length > MEMORY_MAX) return fail(`Lo que recuerdo no puede pasar de ${MEMORY_MAX} caracteres.`);
+      for (const m of refs.me.values()) {
+        if (m.label.toLowerCase() === fact.toLowerCase()) return fail("Eso ya lo tengo en la memoria.");
+      }
+      return { ok: true, proposal: { kind: "memory.create", payload: { values: { content: fact } }, summary: `Recordar: ${fact}` } };
+    }
+    case "olvidar": {
+      const item = resolve(refs, "me", args.memory);
+      if (!item) return fail("No encuentro eso en mi memoria.");
+      return { ok: true, proposal: { kind: "memory.delete", payload: { id: item.id }, summary: `Olvidar: ${item.label}` } };
+    }
+
+    case "enviar_correo": {
+      const to = parseAddresses(text(args.to));
+      if (!to) return fail("Necesito direcciones de correo válidas para enviarlo.");
+      const subject = text(args.subject).replace(/[\r\n]+/g, " ").trim();
+      const body = text(args.body).trim();
+      if (!subject || subject.length > MAIL_SUBJECT_MAX) return fail("El asunto del correo no es válido.");
+      if (!body || body.length > MAIL_BODY_MAX) return fail("El texto del correo no es válido.");
+      return {
+        ok: true,
+        proposal: {
+          kind: "mail.send",
+          payload: { mail: { to, subject, body } },
+          summary: `Enviar a ${to.join(", ")}: ${quote(subject)}`,
+        },
+      };
+    }
+    case "responder_correo": {
+      const item = resolve(refs, "m", args.mail);
+      if (!item) return fail("No encuentro ese correo.");
+      const body = text(args.body).trim();
+      if (!body || body.length > MAIL_BODY_MAX) return fail("El texto de la respuesta no es válido.");
+      const from = String(item.values.from ?? "");
+      const subject = /^re:/i.test(item.label) ? item.label : `Re: ${item.label}`;
+      return {
+        ok: true,
+        proposal: {
+          kind: "mail.send",
+          // Gmail decides the real recipient and thread when sending; these are for the preview.
+          payload: { mail: { to: from ? [from] : [], subject, body, replyTo: item.id } },
+          summary: `Responder a ${from || "el correo"}: ${quote(item.label)}`,
+        },
+      };
+    }
     default:
       return fail("Acción desconocida.");
   }
@@ -399,6 +527,8 @@ const TABLE: Record<Entity, string> = {
   subject: "subjects",
   topic: "topics",
   page: "pages",
+  reminder: "reminders",
+  memory: "jax_memories",
 };
 
 /** Columns each action may write. Anything else in a stored payload is refused. */
@@ -412,7 +542,12 @@ const WRITABLE: Partial<Record<ActionKind, string[]>> = {
   "subject.create": ["name", "description"],
   "topic.create": ["subject_id", "title"],
   "page.create": ["topic_id", "title", "content"],
+  "reminder.create": ["title", "remind_at"],
+  "memory.create": ["content"],
 };
+
+const DELETABLE = new Set<Entity>(["task", "event", "exam", "reminder", "memory"]);
+const ENTITY_KIND = /^(task|event|exam|subject|topic|page|reminder|memory)\.(create|update|delete)$/;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -423,7 +558,7 @@ export type ApplyPlan =
 
 /** Turns a stored proposal into a DB operation, or null if it doesn't look like one we made. */
 export function planAction(kind: string, payload: unknown): ApplyPlan | null {
-  const match = /^(task|event|exam|subject|topic|page)\.(create|update|delete)$/.exec(kind);
+  const match = ENTITY_KIND.exec(kind);
   if (!match || !payload || typeof payload !== "object") return null;
   const [, entity, op] = match as unknown as [string, Entity, "create" | "update" | "delete"];
   const p = payload as Proposal["payload"];
@@ -434,7 +569,7 @@ export function planAction(kind: string, payload: unknown): ApplyPlan | null {
 
   if (op === "create") return onlyAllowed(p.values) ? { op: "insert", table, values: p.values! } : null;
   if (typeof p.id !== "string" || !UUID.test(p.id)) return null;
-  if (op === "delete") return entity === "task" || entity === "event" || entity === "exam" ? { op: "delete", table, id: p.id } : null;
+  if (op === "delete") return DELETABLE.has(entity) ? { op: "delete", table, id: p.id } : null;
   return onlyAllowed(p.changes) ? { op: "update", table, id: p.id, changes: p.changes! } : null;
 }
 
@@ -445,6 +580,8 @@ const REINSERT: Partial<Record<string, string[]>> = {
   tasks: ["id", "title", "notes", "priority", "status", "due_date", "completed_at", "created_at"],
   events: ["id", "title", "event_date", "start_time", "end_time", "location", "notes", "created_at"],
   exams: ["id", "subject_id", "title", "exam_date", "exam_time", "location", "grade", "created_at"],
+  reminders: ["id", "title", "remind_at", "sent_at", "created_at"],
+  jax_memories: ["id", "content", "created_at"],
 };
 
 export type UndoData = { id?: string; previous?: Record<string, unknown>; row?: Record<string, unknown> };
@@ -455,7 +592,7 @@ function pick(obj: Record<string, unknown>, keys: string[]) {
 
 /** What reverting an applied action means, from the undo data captured when applying. */
 export function planUndo(kind: string, undo: unknown): ApplyPlan | null {
-  const match = /^(task|event|exam|subject|topic|page)\.(create|update|delete)$/.exec(kind);
+  const match = ENTITY_KIND.exec(kind);
   if (!match || !undo || typeof undo !== "object") return null;
   const entity = match[1] as Entity;
   const op = match[2];
@@ -491,5 +628,24 @@ export function hrefFor(entity: Entity, row: Record<string, unknown>, subjectId?
       return typeof row.subject_id === "string" ? `/universidad/${row.subject_id}` : "/universidad";
     case "page":
       return subjectId && typeof row.id === "string" ? `/universidad/${subjectId}/paginas/${row.id}` : "/universidad";
+    case "reminder":
+      return "/#recordatorios";
+    case "memory":
+      return "/jax";
   }
+}
+
+/** A stored mail.send payload, re-validated right before sending. */
+export function planMail(kind: string, payload: unknown): MailDraft | null {
+  if (kind !== "mail.send" || !payload || typeof payload !== "object") return null;
+  const m = (payload as Proposal["payload"]).mail;
+  if (!m || typeof m !== "object") return null;
+  const subject = typeof m.subject === "string" ? m.subject.replace(/[\r\n]+/g, " ").trim() : "";
+  const body = typeof m.body === "string" ? m.body.trim() : "";
+  if (!subject || subject.length > MAIL_SUBJECT_MAX || !body || body.length > MAIL_BODY_MAX) return null;
+  if (m.replyTo !== undefined) {
+    return typeof m.replyTo === "string" && /^[0-9a-f]{8,32}$/i.test(m.replyTo) ? { to: [], subject, body, replyTo: m.replyTo } : null;
+  }
+  const to = Array.isArray(m.to) ? parseAddresses(m.to.join(",")) : null;
+  return to ? { to, subject, body } : null;
 }

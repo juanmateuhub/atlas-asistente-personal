@@ -7,7 +7,8 @@ import { keywords, normalize } from "./search";
 const MAIL_WORDS = new Set(
   (
     "correo correos email emails mail mails gmail bandeja mensaje mensajes escrito escribio escribieron " +
-    "enviado enviaron mandado mandaron llegado llego recibido recibi notificacion notificaciones"
+    "enviado enviaron mandado mandaron llegado llego recibido recibi notificacion notificaciones " +
+    "responde responder respondele contesta contestar contestale reenvia"
   ).split(" "),
 );
 

@@ -1,10 +1,27 @@
 import "server-only";
 
+export const GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.modify";
+export const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
+export const CALENDAR_LIST_SCOPE = "https://www.googleapis.com/auth/calendar.calendarlist.readonly";
+
 /**
- * Read the mailbox and change its labels (Atlas only removes UNREAD when a message
- * is opened), plus the address. gmail.modify cannot send mail or delete it for good.
+ * gmail.modify: read the mailbox, change labels (Atlas only removes UNREAD when a
+ * message is opened) and send the mail the user confirms; it cannot delete mail for
+ * good. calendar.events: two-way sync of the primary calendar, and reading the
+ * events of the other calendars the user shows (e.g. the UJI timetable), which
+ * calendarlist.readonly lets Atlas find. Plus the address.
  */
-export const GMAIL_SCOPES = ["openid", "email", "https://www.googleapis.com/auth/gmail.modify"];
+export const GOOGLE_SCOPES = ["openid", "email", GMAIL_SCOPE, CALENDAR_SCOPE, CALENDAR_LIST_SCOPE];
+
+/** The calendar permission is optional: Google lets the user untick it on the consent screen. */
+export function hasCalendarScope(scopes: string): boolean {
+  return scopes.split(" ").includes(CALENDAR_SCOPE);
+}
+
+/** Without it only the primary calendar is synced. */
+export function hasCalendarListScope(scopes: string): boolean {
+  return scopes.split(" ").includes(CALENDAR_LIST_SCOPE);
+}
 
 export const STATE_COOKIE = "atlas_mail_oauth_state";
 
@@ -29,7 +46,7 @@ export function authorizationUrl(origin: string, state: string): string {
     client_id: env().clientId,
     redirect_uri: redirectUri(origin),
     response_type: "code",
-    scope: GMAIL_SCOPES.join(" "),
+    scope: GOOGLE_SCOPES.join(" "),
     // offline + consent: Google returns a refresh token every time.
     access_type: "offline",
     prompt: "consent",
@@ -60,10 +77,10 @@ async function tokenRequest(body: Record<string, string>): Promise<TokenResponse
 export async function exchangeCode(code: string, origin: string) {
   const t = await tokenRequest({ code, grant_type: "authorization_code", redirect_uri: redirectUri(origin) });
   if (!t.refresh_token) throw new Error("Google no ha devuelto refresh token");
-  if (!t.scope?.includes("gmail.modify")) throw new Error("Falta el permiso de Gmail");
+  if (!t.scope?.split(" ").includes(GMAIL_SCOPE)) throw new Error("Falta el permiso de Gmail");
   const payload = JSON.parse(Buffer.from((t.id_token ?? "").split(".")[1] ?? "", "base64url").toString("utf8") || "{}");
   if (typeof payload.email !== "string") throw new Error("Google no ha devuelto el correo");
-  return { refreshToken: t.refresh_token, email: payload.email as string };
+  return { refreshToken: t.refresh_token, email: payload.email as string, scopes: t.scope };
 }
 
 export async function accessTokenFor(refreshToken: string): Promise<string> {

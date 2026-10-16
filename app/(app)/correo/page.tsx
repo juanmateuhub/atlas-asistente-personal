@@ -175,7 +175,7 @@ function Connect({ notice, configured, reconnect = false }: { notice?: string; c
       <EmptyState
         icon={<EnvelopeSimple size={20} weight="fill" />}
         title={reconnect ? "Vuelve a conectar tu correo" : "Conecta tu correo de la UJI"}
-        description="Atlas lee tu bandeja y marca como leídos los correos que abres. No envía ni borra correos. Los avisos automáticos que no te interesan se ocultan con filtros que tú controlas."
+        description="Atlas lee tu bandeja, marca como leídos los correos que abres y sincroniza tu Google Calendar. Jax te avisa de entregas y citas que lleguen por correo, y solo envía los correos que tú confirmas; nunca borra nada. Los avisos que no te interesan se ocultan con filtros que tú controlas."
       />
       {configured ? (
         // Plain <a>: the route redirects to Google, it is not an app page.

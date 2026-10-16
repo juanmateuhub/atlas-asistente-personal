@@ -72,3 +72,37 @@ function toProviderError(err: unknown): ProviderError {
   if (status && status >= 500) return new ProviderError("Gemini no está disponible", "unavailable");
   return new ProviderError("Error al contactar con Gemini", "unknown");
 }
+
+/**
+ * One JSON answer that follows `schema` (no streaming, no tools), for background
+ * jobs. Tries the main model, then the lighter one when the first is overloaded.
+ */
+export async function generateJson<T>({ system, prompt, schema }: { system: string; prompt: string; schema: unknown }): Promise<T> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new ProviderError("Falta GEMINI_API_KEY", "config");
+  const ai = new GoogleGenAI({ apiKey });
+  const primary = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+  const fallback = process.env.GEMINI_FALLBACK_MODEL || DEFAULT_FALLBACK_MODEL;
+
+  let lastError: ProviderError | undefined;
+  for (const model of primary === fallback ? [primary] : [primary, fallback]) {
+    try {
+      const res = await ai.models.generateContent({
+        model,
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: {
+          systemInstruction: system,
+          temperature: 0.1,
+          maxOutputTokens: 2000,
+          responseMimeType: "application/json",
+          responseJsonSchema: schema,
+        },
+      });
+      return JSON.parse(res.text ?? "") as T;
+    } catch (err) {
+      lastError = err instanceof SyntaxError ? new ProviderError("Respuesta no válida", "unknown") : toProviderError(err);
+      if (lastError.kind !== "unavailable" && lastError.kind !== "rate_limit") throw lastError;
+    }
+  }
+  throw lastError;
+}

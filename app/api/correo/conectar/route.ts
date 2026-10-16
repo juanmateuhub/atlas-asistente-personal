@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { STATE_COOKIE, authorizationUrl, mailConfigured } from "@/lib/mail/google";
 import { createClient } from "@/lib/supabase/server";
 
-/** Starts the Google sign-in for Gmail access (read + mark as read). A random state cookie guards the callback. */
+/** Starts the Google sign-in for Gmail and Calendar access. A random state cookie guards the callback. */
 export async function GET(request: NextRequest) {
   const { origin } = request.nextUrl;
   const supabase = await createClient();
