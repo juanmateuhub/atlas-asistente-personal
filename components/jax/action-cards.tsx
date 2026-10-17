@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowUpRight,
   BellRing,
+  Dumbbell,
   BookOpen,
   Brain,
   CalendarClock,
@@ -12,7 +13,9 @@ import {
   FileText,
   GraduationCap,
   Layers,
+  ListChecks,
   RotateCcw,
+  Scale,
   Send,
   Trash2,
 } from "lucide-react";
@@ -31,6 +34,9 @@ const ICON = {
   reminder: BellRing,
   memory: Brain,
   mail: Send,
+  workout: Dumbbell,
+  routine: ListChecks,
+  weight: Scale,
 } as const;
 
 type CardState = { status: JaxActionStatus; href: string | null; error?: string };

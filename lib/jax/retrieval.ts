@@ -5,6 +5,7 @@ import { addDays } from "./dates";
 import { docToText } from "./doc-text";
 import { chunkText, keywords, searchPages, type PageHit, type SearchablePage } from "./search";
 import { emptyRefs, type RefMap } from "./tools";
+import { asExercises } from "@/lib/fitness/types";
 import { instantToZoned } from "@/lib/reminders/time";
 
 /** Long-term memory is small by design: every fact goes into every prompt. */
@@ -13,7 +14,7 @@ export const MEMORY_LIMIT = 100;
 /**
  * Deterministic retrieval of the caller's data. Runs with the user's Supabase
  * client, so RLS limits every query to their own rows. Every item the model may
- * change gets a short ref (t1, e1, x1, s1, tp1, r1, me1) that maps back to its UUID.
+ * change gets a short ref (t1, e1, x1, s1, tp1, r1, me1, w1, bw1) that maps back to its UUID.
  */
 export async function retrieveData(
   supabase: SupabaseClient,
@@ -22,7 +23,7 @@ export async function retrieveData(
   now: string,
 ): Promise<{ data: JaxData; refs: RefMap }> {
   const terms = keywords(question);
-  const [tasks, exams, events, subjects, pages, files, reminders, memories] = await Promise.all([
+  const [tasks, exams, events, subjects, pages, files, reminders, memories, workouts, routines, weights] = await Promise.all([
     supabase
       .from("tasks")
       .select("id,title,due_date,priority,status")
@@ -60,9 +61,19 @@ export async function retrieveData(
       : Promise.resolve({ data: [], error: null }),
     supabase.from("reminders").select("id,title,remind_at").is("sent_at", null).order("remind_at").limit(30),
     supabase.from("jax_memories").select("id,content").order("created_at").limit(MEMORY_LIMIT),
+    supabase
+      .from("workouts")
+      .select("id,title,workout_date,exercises")
+      .gte("workout_date", addDays(today, -45))
+      .order("workout_date", { ascending: false })
+      .limit(15),
+    supabase.from("workout_routines").select("name,exercises").order("name").limit(20),
+    supabase.from("body_weights").select("id,measured_on,weight_kg").order("measured_on", { ascending: false }).limit(10),
   ]);
 
-  const failed = [tasks, exams, events, subjects, pages, files, reminders, memories].find((r) => r.error);
+  const failed = [tasks, exams, events, subjects, pages, files, reminders, memories, workouts, routines, weights].find(
+    (r) => r.error,
+  );
   if (failed) throw new Error("retrieval failed");
 
   const hhmm = (t: string | null) => (t ? t.slice(0, 5) : null);
@@ -144,6 +155,26 @@ export async function retrieveData(
     return { ref, content: m.content };
   });
 
+  const workoutItems = (workouts.data ?? []).map((w, i) => {
+    const ref = `w${i + 1}`;
+    const exercises = asExercises(w.exercises);
+    refs.w.set(ref, {
+      id: w.id,
+      label: w.title,
+      values: { title: w.title, workout_date: w.workout_date, exercises: JSON.stringify(exercises) },
+    });
+    return { ref, title: w.title, date: w.workout_date, exercises };
+  });
+
+  const routineItems = (routines.data ?? []).map((r) => ({ name: r.name, exercises: asExercises(r.exercises) }));
+
+  const weightItems = (weights.data ?? []).map((w, i) => {
+    const ref = `bw${i + 1}`;
+    const kg = Number(w.weight_kg);
+    refs.bw.set(ref, { id: w.id, label: `${kg} kg`, values: { measured_on: w.measured_on, weight_kg: kg } });
+    return { ref, date: w.measured_on, weightKg: kg };
+  });
+
   const searchable: SearchablePage[] = (pages.data ?? []).map((p) => {
     const topic = p.topics as unknown as { title: string; subject_id: string; subjects: { name: string } };
     return {
@@ -166,6 +197,9 @@ export async function retrieveData(
       subjects: subjectItems,
       reminders: reminderItems,
       memories: memoryItems,
+      workouts: workoutItems,
+      routines: routineItems,
+      weights: weightItems,
       notes: rankSources(searchPages(searchable, question), documentHits(files.data ?? [], question)),
     },
     refs,

@@ -5,12 +5,24 @@
  * user couldn't store by hand.
  *
  * The model refers to existing items by short refs from the DATOS block
- * (t1, e1, x1, s1, tp1, r1, me1, m1); refs resolve to ids here, so invented ids fail.
+ * (t1, e1, x1, s1, tp1, r1, me1, m1, w1, bw1); refs resolve to ids here, so invented ids fail.
  *
  * Sending mail is the one change that is never applied on its own: it can't be
  * undone and it reaches other people, so it waits for the user's confirmation.
  */
 import { parseEventInput } from "@/lib/calendar/validation";
+import { formatKg, formatSets } from "@/lib/fitness/stats";
+import { asExercises, type Exercise } from "@/lib/fitness/types";
+import {
+  BODY_WEIGHT_MAX,
+  BODY_WEIGHT_MIN,
+  cleanExerciseName,
+  expandSets,
+  parseExercises,
+  parseNumber,
+  SETS_MAX,
+  TITLE_MAX as WORKOUT_TITLE_MAX,
+} from "@/lib/fitness/validation";
 import { parseAddresses } from "@/lib/mail/gmail";
 import { instantToZoned } from "@/lib/reminders/time";
 import { parseReminderInput } from "@/lib/reminders/validation";
@@ -19,7 +31,7 @@ import { isValidDate, parseTaskInput } from "@/lib/tasks/validation";
 import { parseExamInput, parseSubjectInput, parseTitle, parseDoc } from "@/lib/university/validation";
 import { markdownToDoc } from "./markdown-doc";
 
-export type Entity = "task" | "event" | "exam" | "subject" | "topic" | "page" | "reminder" | "memory";
+export type Entity = "task" | "event" | "exam" | "subject" | "topic" | "page" | "reminder" | "memory" | "workout" | "routine" | "weight";
 export type ActionKind = `${Entity}.${"create" | "update" | "delete"}` | "mail.send";
 
 /** A message Jax wrote; replyTo is the Gmail id of the message being answered. */
@@ -38,10 +50,21 @@ export type Proposal = {
 
 /** Snapshot of existing items the model may reference (from retrieval). */
 export type RefItem = { id: string; label: string; values: Record<string, string | number | null> };
-export type RefMap = Record<"t" | "e" | "x" | "s" | "tp" | "r" | "me" | "m", Map<string, RefItem>>;
+export type RefMap = Record<"t" | "e" | "x" | "s" | "tp" | "r" | "me" | "m" | "w" | "bw", Map<string, RefItem>>;
 
 export function emptyRefs(): RefMap {
-  return { t: new Map(), e: new Map(), x: new Map(), s: new Map(), tp: new Map(), r: new Map(), me: new Map(), m: new Map() };
+  return {
+    t: new Map(),
+    e: new Map(),
+    x: new Map(),
+    s: new Map(),
+    tp: new Map(),
+    r: new Map(),
+    me: new Map(),
+    m: new Map(),
+    w: new Map(),
+    bw: new Map(),
+  };
 }
 
 type Result = { ok: true; proposal: Proposal } | { ok: false; error: string };
@@ -53,6 +76,21 @@ const time = { type: "string", description: "Hora HH:MM (24 h)" } as const;
 function schema(properties: Record<string, unknown>, required: string[]) {
   return { type: "object", properties, required, additionalProperties: false };
 }
+
+/** Exercises as "sets × reps at kg"; several entries of one exercise for uneven sets. */
+const exercisesParam = {
+  type: "array",
+  description: "Ejercicios. «3x8 a 60 kg» = sets 3, reps 8, weight_kg 60. Sin weight_kg = con el peso corporal.",
+  items: schema(
+    {
+      name: { type: "string", description: "Nombre del ejercicio, p. ej. Press banca" },
+      sets: { type: "integer", minimum: 1, maximum: SETS_MAX },
+      reps: { type: "integer", minimum: 0, maximum: 1000 },
+      weight_kg: { type: "number", minimum: 0, maximum: 1000 },
+    },
+    ["name", "sets", "reps"],
+  ),
+} as const;
 
 export const TOOL_DECLARATIONS = [
   {
@@ -157,6 +195,29 @@ export const TOOL_DECLARATIONS = [
     parametersJsonSchema: schema({ memory: str }, ["memory"]),
   },
   {
+    name: "apuntar_entreno",
+    description:
+      "Apunta ejercicios hechos en el gimnasio. Si ese día ya hay un entreno (ref wN en ENTRENOS), se añaden a él; si no, se crea uno.",
+    parametersJsonSchema: schema(
+      { date, exercises: exercisesParam, title: { type: "string", description: "Nombre del entreno si es nuevo, p. ej. Pierna" }, notes: str },
+      ["date", "exercises"],
+    ),
+  },
+  { name: "borrar_entreno", description: "Borra un entreno (ref wN).", parametersJsonSchema: schema({ workout: str }, ["workout"]) },
+  {
+    name: "crear_rutina",
+    description: "Crea una rutina de entreno (plantilla con ejercicios y series objetivo).",
+    parametersJsonSchema: schema({ name: str, exercises: exercisesParam, notes: str }, ["name", "exercises"]),
+  },
+  {
+    name: "registrar_peso",
+    description: "Apunta el peso corporal del usuario en kg. Si ese día ya hay uno, lo cambia.",
+    parametersJsonSchema: schema(
+      { date, weight_kg: { type: "number", minimum: BODY_WEIGHT_MIN, maximum: BODY_WEIGHT_MAX } },
+      ["date", "weight_kg"],
+    ),
+  },
+  {
     name: "enviar_correo",
     description: "Prepara un correo nuevo desde la cuenta UJI del usuario. No se envía hasta que el usuario lo confirme.",
     parametersJsonSchema: schema(
@@ -193,6 +254,38 @@ function resolve(refs: RefMap, prefix: keyof RefMap, ref: unknown): RefItem | nu
 }
 
 const quote = (s: string) => `«${s}»`;
+
+/** Jax's "n × reps at kg" entries as validated exercises; the same exercise twice is merged. */
+function toExercises(raw: unknown): { ok: true; value: Exercise[] } | { ok: false; error: string } {
+  if (!Array.isArray(raw) || raw.length === 0) return { ok: false, error: "Dime qué ejercicios has hecho." };
+  const expanded = raw.map((item) => {
+    const e = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
+    const sets = parseNumber(e.sets);
+    const n = sets !== null && Number.isInteger(sets) && sets >= 1 && sets <= SETS_MAX ? sets : 0;
+    const weight = e.weight_kg === undefined || e.weight_kg === null ? null : parseNumber(e.weight_kg);
+    // Invalid numbers are kept as -1 so parseExercises reports them.
+    const reps = parseNumber(e.reps) ?? -1;
+    return { name: text(e.name), sets: n ? expandSets(n, reps, weight ?? null) : [{ reps: -1, weight: null }] };
+  });
+  const parsed = parseExercises(mergeExercises([], expanded));
+  if (!parsed.ok) return parsed;
+  if (parsed.value.length === 0) return { ok: false, error: "Dime qué ejercicios has hecho." };
+  return parsed;
+}
+
+/** Adds `extra` to `base`; sets of an exercise already there go after its own. */
+export function mergeExercises(base: Exercise[], extra: Exercise[]): Exercise[] {
+  const out = base.map((e) => ({ ...e, sets: [...e.sets] }));
+  for (const e of extra) {
+    const name = cleanExerciseName(e.name);
+    const same = out.find((o) => o.name.toLocaleLowerCase("es") === name.toLocaleLowerCase("es"));
+    if (same) same.sets.push(...e.sets);
+    else out.push({ name, sets: [...e.sets] });
+  }
+  return out;
+}
+
+const describeExercises = (exercises: Exercise[]) => exercises.map((e) => `${e.name} ${formatSets(e.sets)}`).join("; ");
 const fmtDate = (d: string | null | undefined) => {
   if (!d) return "";
   const [y, m, day] = d.split("-").map(Number);
@@ -454,6 +547,91 @@ export function toProposal(name: string, rawArgs: unknown, refs: RefMap): Result
       return { ok: true, proposal: { kind: "memory.delete", payload: { id: item.id }, summary: `Olvidar: ${item.label}` } };
     }
 
+    case "apuntar_entreno": {
+      const day = text(args.date).trim();
+      if (!isValidDate(day)) return fail("Necesito la fecha del entreno.");
+      const ex = toExercises(args.exercises);
+      if (!ex.ok) return fail(ex.error);
+      const existing = [...refs.w.values()].find((w) => w.values.workout_date === day);
+      if (existing) {
+        const before = asExercises(JSON.parse(String(existing.values.exercises ?? "[]")));
+        const merged = parseExercises(mergeExercises(before, ex.value));
+        if (!merged.ok) return fail(merged.error);
+        return {
+          ok: true,
+          proposal: {
+            kind: "workout.update",
+            payload: { id: existing.id, changes: { exercises: merged.value } },
+            summary: `Añadir a ${quote(existing.label)}: ${describeExercises(ex.value)}`,
+          },
+        };
+      }
+      const title = text(args.title).replace(/\s+/g, " ").trim().slice(0, WORKOUT_TITLE_MAX) || "Entreno";
+      const notes = text(args.notes).trim().slice(0, 2000) || null;
+      return {
+        ok: true,
+        proposal: {
+          kind: "workout.create",
+          payload: { values: { title, workout_date: day, exercises: ex.value, notes } },
+          summary: `Apuntar entreno ${quote(title)} el ${fmtDate(day)}: ${describeExercises(ex.value)}`,
+        },
+      };
+    }
+    case "borrar_entreno": {
+      const item = resolve(refs, "w", args.workout);
+      if (!item) return fail("No encuentro ese entreno.");
+      return {
+        ok: true,
+        proposal: {
+          kind: "workout.delete",
+          payload: { id: item.id },
+          summary: `Borrar entreno ${quote(item.label)} del ${fmtDate(String(item.values.workout_date ?? ""))}`,
+        },
+      };
+    }
+    case "crear_rutina": {
+      const name = text(args.name).replace(/\s+/g, " ").trim();
+      if (!name || name.length > WORKOUT_TITLE_MAX) return fail("Dime cómo se llama la rutina.");
+      const ex = toExercises(args.exercises);
+      if (!ex.ok) return fail(ex.error);
+      const notes = text(args.notes).trim().slice(0, 2000) || null;
+      return {
+        ok: true,
+        proposal: {
+          kind: "routine.create",
+          payload: { values: { name, exercises: ex.value, notes } },
+          summary: `Crear rutina ${quote(name)}: ${describeExercises(ex.value)}`,
+        },
+      };
+    }
+    case "registrar_peso": {
+      const day = text(args.date).trim();
+      if (!isValidDate(day)) return fail("Necesito la fecha.");
+      const kg = parseNumber(args.weight_kg);
+      if (kg === null || kg < BODY_WEIGHT_MIN || kg > BODY_WEIGHT_MAX) return fail("Ese peso no es válido.");
+      const weight = Math.round(kg * 100) / 100;
+      const existing = [...refs.bw.values()].find((w) => w.values.measured_on === day);
+      if (existing) {
+        if (Number(existing.values.weight_kg) === weight) return fail("Ese peso ya está apuntado.");
+        return {
+          ok: true,
+          proposal: {
+            kind: "weight.update",
+            payload: { id: existing.id, changes: { weight_kg: weight } },
+            summary: `Cambiar tu peso del ${fmtDate(day)}: ${formatKg(Number(existing.values.weight_kg))} → ${formatKg(weight)}`,
+          },
+        };
+      }
+      return {
+        ok: true,
+        proposal: {
+          kind: "weight.create",
+          payload: { values: { measured_on: day, weight_kg: weight } },
+          summary: `Apuntar tu peso: ${formatKg(weight)} el ${fmtDate(day)}`,
+        },
+      };
+    }
+
     case "enviar_correo": {
       const to = parseAddresses(text(args.to));
       if (!to) return fail("Necesito direcciones de correo válidas para enviarlo.");
@@ -529,6 +707,9 @@ const TABLE: Record<Entity, string> = {
   page: "pages",
   reminder: "reminders",
   memory: "jax_memories",
+  workout: "workouts",
+  routine: "workout_routines",
+  weight: "body_weights",
 };
 
 /** Columns each action may write. Anything else in a stored payload is refused. */
@@ -544,10 +725,15 @@ const WRITABLE: Partial<Record<ActionKind, string[]>> = {
   "page.create": ["topic_id", "title", "content"],
   "reminder.create": ["title", "remind_at"],
   "memory.create": ["content"],
+  "workout.create": ["title", "workout_date", "exercises", "notes"],
+  "workout.update": ["exercises"],
+  "routine.create": ["name", "exercises", "notes"],
+  "weight.create": ["measured_on", "weight_kg"],
+  "weight.update": ["weight_kg"],
 };
 
-const DELETABLE = new Set<Entity>(["task", "event", "exam", "reminder", "memory"]);
-const ENTITY_KIND = /^(task|event|exam|subject|topic|page|reminder|memory)\.(create|update|delete)$/;
+const DELETABLE = new Set<Entity>(["task", "event", "exam", "reminder", "memory", "workout"]);
+const ENTITY_KIND = /^(task|event|exam|subject|topic|page|reminder|memory|workout|routine|weight)\.(create|update|delete)$/;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -582,6 +768,7 @@ const REINSERT: Partial<Record<string, string[]>> = {
   exams: ["id", "subject_id", "title", "exam_date", "exam_time", "location", "grade", "created_at"],
   reminders: ["id", "title", "remind_at", "sent_at", "created_at"],
   jax_memories: ["id", "content", "created_at"],
+  workouts: ["id", "title", "workout_date", "notes", "exercises", "created_at"],
 };
 
 export type UndoData = { id?: string; previous?: Record<string, unknown>; row?: Record<string, unknown> };
@@ -632,6 +819,12 @@ export function hrefFor(entity: Entity, row: Record<string, unknown>, subjectId?
       return "/#recordatorios";
     case "memory":
       return "/jax";
+    case "workout":
+      return typeof row.id === "string" ? `/fitness/entrenos/${row.id}` : "/fitness";
+    case "routine":
+      return typeof row.id === "string" ? `/fitness/rutinas/${row.id}` : "/fitness";
+    case "weight":
+      return "/fitness";
   }
 }
 

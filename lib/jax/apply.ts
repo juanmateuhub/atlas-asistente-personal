@@ -78,7 +78,13 @@ export async function applyAction(supabase: SupabaseClient, actionId: string): P
     const { data: topic } = await supabase.from("topics").select("subject_id").eq("id", row.topic_id).maybeSingle();
     subjectId = topic?.subject_id;
   }
-  const href = plan.op === "delete" && entity === "task" ? "/tareas" : hrefFor(entity, row, subjectId);
+  // A deleted item has no page of its own: link to its list.
+  const href =
+    plan.op === "delete" && entity === "task"
+      ? "/tareas"
+      : plan.op === "delete" && entity === "workout"
+        ? "/fitness"
+        : hrefFor(entity, row, subjectId);
 
   await supabase.from("jax_actions").update({ undo, href }).eq("id", actionId);
   if (entity === "event") {

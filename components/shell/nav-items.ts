@@ -1,4 +1,4 @@
-import { BookOpen, CalendarBlank, ChatsCircle, CheckSquare, EnvelopeSimple, House, type Icon } from "@phosphor-icons/react";
+import { Barbell, BookOpen, CalendarBlank, ChatsCircle, CheckSquare, EnvelopeSimple, House, type Icon } from "@phosphor-icons/react";
 
 export type NavItem = {
   href: string;
@@ -17,6 +17,7 @@ export const navItems: NavItem[] = [
   { href: "/tareas", label: "Tareas", icon: CheckSquare, badge: true },
   { href: "/calendario", label: "Calendario", icon: CalendarBlank },
   { href: "/universidad", label: "Universidad", short: "Uni", icon: BookOpen },
+  { href: "/fitness", label: "Fitness", icon: Barbell },
   { href: "/correo", label: "Correo", icon: EnvelopeSimple },
   // Mobile: Jax lives in the top-right avatar (JaxLauncher), available on every screen.
   { href: "/jax", label: "Jax", icon: ChatsCircle, desktopOnly: true },
