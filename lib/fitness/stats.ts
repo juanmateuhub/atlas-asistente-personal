@@ -125,3 +125,26 @@ export function weightTrend(weights: BodyWeight[], days = 30): WeightTrend | nul
     since: base?.date ?? null,
   };
 }
+
+export type ExercisePoint = { date: string; weight: number; reps: number; oneRepMax: number };
+
+/** Heaviest set of an exercise on each day, oldest first (two sessions the same day count as one). */
+export function exerciseHistory(workouts: Workout[], name: string): ExercisePoint[] {
+  const byDay = new Map<string, ExercisePoint>();
+  for (const w of workouts.toSorted((a, b) => a.date.localeCompare(b.date))) {
+    for (const e of w.exercises) {
+      if (exerciseKey(e.name) !== exerciseKey(name)) continue;
+      const sets = e.sets.filter((s) => s.reps > 0 && s.weight !== null && s.weight > 0);
+      if (!sets.length) continue;
+      const top = sets.reduce((a, b) => ((b.weight as number) > (a.weight as number) || (b.weight === a.weight && b.reps > a.reps) ? b : a));
+      const rm = Math.round(Math.max(...sets.map((s) => estimateOneRepMax(s.weight as number, s.reps))) * 2) / 2;
+      const prev = byDay.get(w.date);
+      const point = { date: w.date, weight: top.weight as number, reps: top.reps, oneRepMax: rm };
+      if (!prev) byDay.set(w.date, point);
+      else if (point.weight > prev.weight || (point.weight === prev.weight && point.reps > prev.reps)) {
+        byDay.set(w.date, { ...point, oneRepMax: Math.max(rm, prev.oneRepMax) });
+      } else prev.oneRepMax = Math.max(rm, prev.oneRepMax);
+    }
+  }
+  return [...byDay.values()];
+}

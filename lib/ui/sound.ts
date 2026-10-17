@@ -1,6 +1,6 @@
 /**
  * Soft chimes from the redesign (Web Audio, no files): "done" is two sine notes
- * (C6 then G6), "add" a single G5, "levelup" a rising arpeggio. Short, quiet, and silently skipped where
+ * (C6 then G6), "add" a single G5. Short, quiet, and silently skipped where
  * audio isn't available.
  */
 let ctx: AudioContext | null = null;
@@ -11,14 +11,6 @@ const NOTES = {
     [1568, 0.07],
   ],
   add: [[784, 0]],
-  /** Fitness level up: a rising C major arpeggio, like a game fanfare. */
-  levelup: [
-    [523.25, 0],
-    [659.25, 0.09],
-    [783.99, 0.18],
-    [1046.5, 0.27],
-    [1568, 0.4],
-  ],
 } as const;
 
 export function playChime(kind: keyof typeof NOTES) {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildDataBlock, stripUnknownRefs } from "@/lib/jax/context";
 import { emptyRefs, planAction, planUndo, toProposal, type RefMap } from "@/lib/jax/tools";
-import { formatSets, lastPerformance, personalRecords, summarize, volume, weightTrend } from "@/lib/fitness/stats";
+import { exerciseHistory, formatSets, lastPerformance, personalRecords, summarize, volume, weightTrend } from "@/lib/fitness/stats";
 import { parseBodyWeightInput, parseExercises, parseWorkoutInput } from "@/lib/fitness/validation";
 import type { Workout } from "@/lib/fitness/types";
 
@@ -94,6 +94,15 @@ describe("stats", () => {
     const records = personalRecords(workouts);
     expect(records).toHaveLength(1);
     expect(records[0]).toMatchObject({ name: "Press banca", weight: 70, reps: 5, sessions: 2 });
+  });
+
+  it("charts the heaviest set per day, oldest first", () => {
+    const sameDay: Workout = { ...workouts[0], id: ID(5), exercises: [{ name: "Press banca", sets: [{ reps: 3, weight: 72.5 }] }] };
+    expect(exerciseHistory([...workouts, sameDay], "PRESS BANCA")).toEqual([
+      { date: "2026-10-13", weight: 60, reps: 8, oneRepMax: 76 },
+      { date: "2026-10-16", weight: 72.5, reps: 3, oneRepMax: 81.5 },
+    ]);
+    expect(exerciseHistory(workouts, "Dominadas")).toEqual([]);
   });
 
   it("compares weight against about a month earlier", () => {

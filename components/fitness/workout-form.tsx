@@ -8,10 +8,8 @@ import { Field, FormError, inputClass, primaryButtonClass, secondaryButtonClass 
 import { useToast } from "@/components/ui/toast";
 import { summarize, volume, formatKg } from "@/lib/fitness/stats";
 import type { Routine, Workout, WorkoutSet } from "@/lib/fitness/types";
-import type { Reward } from "@/lib/fitness/game";
 import type { FitnessFormState } from "@/lib/fitness/validation";
 import { ExerciseEditor } from "./exercise-editor";
-import { RewardDialog } from "./reward-dialog";
 
 type Props =
   | {
@@ -28,22 +26,11 @@ export function WorkoutForm(props: Props) {
   const item = isWorkout ? props.workout : props.routine;
   const toast = useToast();
   const [dirty, setDirty] = useState(false);
-  const [reward, setReward] = useState<Reward | null>(null);
   const [state, formAction, pending] = useActionState(async (prev: FitnessFormState, fd: FormData) => {
-    if (!isWorkout) {
-      const result = await saveRoutine(prev, fd);
-      if (result.ok) {
-        setDirty(false);
-        toast("Rutina guardada");
-      }
-      return result;
-    }
-    const result = await saveWorkout(prev, fd);
+    const result = await (isWorkout ? saveWorkout : saveRoutine)(prev, fd);
     if (result.ok) {
       setDirty(false);
-      const xp = result.reward?.xp ?? 0;
-      toast(xp > 0 ? `Entreno guardado · +${xp} XP` : "Entreno guardado");
-      if (result.reward) setReward(result.reward);
+      toast(isWorkout ? "Entreno guardado" : "Rutina guardada");
     }
     return result;
   }, {});
@@ -53,7 +40,6 @@ export function WorkoutForm(props: Props) {
   return (
     <form action={formAction} onChange={markDirty} className="flex flex-col gap-8">
       <input type="hidden" name="id" value={item.id} />
-      {isWorkout && <RewardDialog reward={reward} onClose={() => setReward(null)} />}
 
       <div className="grid grid-cols-1 gap-4 rounded-[22px] bg-surface p-[22px] sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Field label="Nombre" htmlFor={`${prefix}-title`}>

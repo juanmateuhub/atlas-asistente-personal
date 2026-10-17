@@ -3,8 +3,7 @@
 import { CaretRight, Trophy } from "@phosphor-icons/react";
 import { useState } from "react";
 import { Dialog, useDialog } from "@/components/ui/dialog";
-import type { ExercisePoint } from "@/lib/fitness/game";
-import { formatKg, type PersonalRecord } from "@/lib/fitness/stats";
+import { formatKg, type ExercisePoint, type PersonalRecord } from "@/lib/fitness/stats";
 import { LineChart, fmtShortDate } from "./line-chart";
 
 /** Best marks as trophies; each opens the evolution of that exercise's heaviest set. */
@@ -16,7 +15,7 @@ export function RecordsGrid({ records, history }: { records: PersonalRecord[]; h
   return (
     <section aria-labelledby="records-title">
       <h2 id="records-title" className="m-0 mb-4 text-[26px] tracking-[-0.035em]">
-        Récords
+        Mejores marcas
       </h2>
       <ul className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr))]">
         {records.map((r) => (
@@ -85,7 +84,7 @@ export function RecordsGrid({ records, history }: { records: PersonalRecord[]; h
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-1 rounded-[14px] bg-step px-3 py-[10px]">
-      <span className="font-pixel text-[10px] tracking-[0.08em] text-neutral-500 uppercase">{label}</span>
+      <span className="text-[11px] font-medium tracking-[0.08em] text-neutral-500 uppercase">{label}</span>
       <span className="text-[15px] font-semibold tabular-nums">{value}</span>
     </div>
   );

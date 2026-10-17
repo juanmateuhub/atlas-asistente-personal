@@ -75,7 +75,6 @@
   --font-sans: var(--font-geist), system-ui, sans-serif;
   --font-heading: var(--font-bricolage), var(--font-geist), system-ui, sans-serif;
   --font-body: var(--font-geist), system-ui, sans-serif;
-  --font-pixel: var(--font-silkscreen), ui-monospace, monospace;
 
   --text-display: 51px;
   --text-display--line-height: 1.1;
@@ -155,17 +154,6 @@
     }
     100% {
       transform: rotate(var(--a)) translateX(30px) scale(0.2);
-      opacity: 0;
-    }
-  }
-  /* Level-up burst (Fitness): squares flying further out than the task sparks. */
-  @keyframes atlasLevelSpark {
-    0% {
-      transform: rotate(var(--a)) translateX(20px) scale(1);
-      opacity: 1;
-    }
-    100% {
-      transform: rotate(var(--a)) translateX(92px) scale(0.2);
       opacity: 0;
     }
   }
