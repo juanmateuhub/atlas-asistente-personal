@@ -1,6 +1,7 @@
 import "server-only";
 import { getCurrentUser } from "@/lib/auth/user";
 import { createClient } from "@/lib/supabase/server";
+import { isMuscle, type MuscleMap } from "./muscles";
 import { ROUTINE_COLUMNS, WORKOUT_COLUMNS, toRoutine, toWorkout, type BodyWeight, type Routine, type Workout } from "./types";
 
 /** The user's workouts, newest first. Enough history for records and "last time". */
@@ -44,4 +45,29 @@ export async function listBodyWeights(limit = 120): Promise<BodyWeight[]> {
     .limit(limit);
   if (error) throw new Error("No se ha podido cargar tu peso.");
   return data.map((r) => ({ id: r.id, date: r.measured_on, weightKg: Number(r.weight_kg) }));
+}
+
+/** The user's own exercise → muscles mapping, by exercise key. */
+export async function listMuscleOverrides(): Promise<Record<string, MuscleMap>> {
+  await getCurrentUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("exercise_muscles").select("exercise_key,muscles").limit(500);
+  if (error) throw new Error("No se han podido cargar los grupos musculares.");
+  return Object.fromEntries(data.map((r) => [r.exercise_key, (r.muscles as string[]).filter(isMuscle)]));
+}
+
+export type CoachNote = { summary: string; tips: string[]; createdAt: string };
+
+export async function latestCoachNote(): Promise<CoachNote | null> {
+  await getCurrentUser();
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("coach_notes")
+    .select("summary,tips,created_at")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data) return null;
+  const tips = Array.isArray(data.tips) ? data.tips.filter((t: unknown): t is string => typeof t === "string") : [];
+  return { summary: data.summary, tips, createdAt: data.created_at };
 }

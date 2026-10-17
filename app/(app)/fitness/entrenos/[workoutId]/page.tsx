@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { WorkoutActions, WorkoutForm } from "@/components/fitness/workout-form";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
-import { listRoutines, listWorkouts } from "@/lib/fitness/queries";
+import { listMuscleOverrides, listRoutines, listWorkouts } from "@/lib/fitness/queries";
 import { exerciseNames, lastPerformance } from "@/lib/fitness/stats";
 import { parseTaskId as parseId } from "@/lib/tasks/validation";
 
@@ -18,7 +18,7 @@ async function WorkoutDetail({ params }: Pick<PageProps<"/fitness/entrenos/[work
   const id = parseId((await params).workoutId);
   if (!id) notFound();
   // History gives "last time" per exercise and the name suggestions.
-  const [workouts, routines] = await Promise.all([listWorkouts(), listRoutines()]);
+  const [workouts, routines, overrides] = await Promise.all([listWorkouts(), listRoutines(), listMuscleOverrides()]);
   const workout = workouts.find((w) => w.id === id);
   if (!workout) notFound();
   // Only sessions before this one count as "last time".
@@ -40,6 +40,7 @@ async function WorkoutDetail({ params }: Pick<PageProps<"/fitness/entrenos/[work
         workout={workout}
         suggestions={exerciseNames(workouts, routines)}
         previous={lastPerformance(earlier)}
+        overrides={overrides}
       />
     </div>
   );

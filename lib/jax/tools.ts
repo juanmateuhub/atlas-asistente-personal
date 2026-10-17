@@ -6,11 +6,13 @@
  *
  * The model refers to existing items by short refs from the DATOS block
  * (t1, e1, x1, s1, tp1, r1, me1, m1, w1, bw1); refs resolve to ids here, so invented ids fail.
+ * Muscle mappings are found by exercise name (refs.mu is keyed by exercise key).
  *
  * Sending mail is the one change that is never applied on its own: it can't be
  * undone and it reaches other people, so it waits for the user's confirmation.
  */
 import { parseEventInput } from "@/lib/calendar/validation";
+import { exerciseKey, isMuscle, MUSCLE_IDS, muscleLabel, type MuscleId } from "@/lib/fitness/muscles";
 import { formatKg, formatSets } from "@/lib/fitness/stats";
 import { asExercises, type Exercise } from "@/lib/fitness/types";
 import {
@@ -31,7 +33,19 @@ import { isValidDate, parseTaskInput } from "@/lib/tasks/validation";
 import { parseExamInput, parseSubjectInput, parseTitle, parseDoc } from "@/lib/university/validation";
 import { markdownToDoc } from "./markdown-doc";
 
-export type Entity = "task" | "event" | "exam" | "subject" | "topic" | "page" | "reminder" | "memory" | "workout" | "routine" | "weight";
+export type Entity =
+  | "task"
+  | "event"
+  | "exam"
+  | "subject"
+  | "topic"
+  | "page"
+  | "reminder"
+  | "memory"
+  | "workout"
+  | "routine"
+  | "weight"
+  | "muscle";
 export type ActionKind = `${Entity}.${"create" | "update" | "delete"}` | "mail.send";
 
 /** A message Jax wrote; replyTo is the Gmail id of the message being answered. */
@@ -50,7 +64,7 @@ export type Proposal = {
 
 /** Snapshot of existing items the model may reference (from retrieval). */
 export type RefItem = { id: string; label: string; values: Record<string, string | number | null> };
-export type RefMap = Record<"t" | "e" | "x" | "s" | "tp" | "r" | "me" | "m" | "w" | "bw", Map<string, RefItem>>;
+export type RefMap = Record<"t" | "e" | "x" | "s" | "tp" | "r" | "me" | "m" | "w" | "bw" | "mu", Map<string, RefItem>>;
 
 export function emptyRefs(): RefMap {
   return {
@@ -64,6 +78,7 @@ export function emptyRefs(): RefMap {
     m: new Map(),
     w: new Map(),
     bw: new Map(),
+    mu: new Map(),
   };
 }
 
@@ -215,6 +230,18 @@ export const TOOL_DECLARATIONS = [
     parametersJsonSchema: schema(
       { date, weight_kg: { type: "number", minimum: BODY_WEIGHT_MIN, maximum: BODY_WEIGHT_MAX } },
       ["date", "weight_kg"],
+    ),
+  },
+  {
+    name: "asignar_musculos",
+    description:
+      "Indica qué grupos musculares trabaja un ejercicio (el primero es el principal; el resto cuenta la mitad en el volumen). Cambia lo que hubiera.",
+    parametersJsonSchema: schema(
+      {
+        exercise: { type: "string", description: "Nombre del ejercicio tal como aparece en ENTRENOS" },
+        muscles: { type: "array", items: { type: "string", enum: [...MUSCLE_IDS] }, minItems: 1, maxItems: 4 },
+      },
+      ["exercise", "muscles"],
     ),
   },
   {
@@ -632,6 +659,24 @@ export function toProposal(name: string, rawArgs: unknown, refs: RefMap): Result
       };
     }
 
+    case "asignar_musculos": {
+      const name = text(args.exercise).replace(/\s+/g, " ").trim();
+      const key = exerciseKey(name);
+      if (!key) return fail("Dime de qué ejercicio se trata.");
+      const muscles = [...new Set(Array.isArray(args.muscles) ? args.muscles.filter(isMuscle) : [])].slice(0, 4) as MuscleId[];
+      if (!muscles.length) return fail("Dime qué músculos trabaja.");
+      const summary = `${name}: ${muscles.map(muscleLabel).join(", ")}`;
+      const existing = refs.mu.get(key);
+      if (existing) {
+        if (existing.values.muscles === muscles.join(",")) return fail("Ese ejercicio ya tiene esos músculos.");
+        return { ok: true, proposal: { kind: "muscle.update", payload: { id: existing.id, changes: { muscles } }, summary: `Cambiar músculos de ${summary}` } };
+      }
+      return {
+        ok: true,
+        proposal: { kind: "muscle.create", payload: { values: { exercise_key: key, muscles } }, summary: `Asignar músculos a ${summary}` },
+      };
+    }
+
     case "enviar_correo": {
       const to = parseAddresses(text(args.to));
       if (!to) return fail("Necesito direcciones de correo válidas para enviarlo.");
@@ -710,6 +755,7 @@ const TABLE: Record<Entity, string> = {
   workout: "workouts",
   routine: "workout_routines",
   weight: "body_weights",
+  muscle: "exercise_muscles",
 };
 
 /** Columns each action may write. Anything else in a stored payload is refused. */
@@ -730,10 +776,12 @@ const WRITABLE: Partial<Record<ActionKind, string[]>> = {
   "routine.create": ["name", "exercises", "notes"],
   "weight.create": ["measured_on", "weight_kg"],
   "weight.update": ["weight_kg"],
+  "muscle.create": ["exercise_key", "muscles"],
+  "muscle.update": ["muscles"],
 };
 
 const DELETABLE = new Set<Entity>(["task", "event", "exam", "reminder", "memory", "workout"]);
-const ENTITY_KIND = /^(task|event|exam|subject|topic|page|reminder|memory|workout|routine|weight)\.(create|update|delete)$/;
+const ENTITY_KIND = /^(task|event|exam|subject|topic|page|reminder|memory|workout|routine|weight|muscle)\.(create|update|delete)$/;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -825,6 +873,8 @@ export function hrefFor(entity: Entity, row: Record<string, unknown>, subjectId?
       return typeof row.id === "string" ? `/fitness/rutinas/${row.id}` : "/fitness";
     case "weight":
       return "/fitness";
+    case "muscle":
+      return "/fitness#musculos";
   }
 }
 

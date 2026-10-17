@@ -7,6 +7,7 @@ import { ActionDialog } from "@/components/ui/action-dialog";
 import { Field, FormError, inputClass, primaryButtonClass, secondaryButtonClass } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { summarize, volume, formatKg } from "@/lib/fitness/stats";
+import type { MuscleMap } from "@/lib/fitness/muscles";
 import type { Routine, Workout, WorkoutSet } from "@/lib/fitness/types";
 import type { FitnessFormState } from "@/lib/fitness/validation";
 import { ExerciseEditor } from "./exercise-editor";
@@ -17,6 +18,7 @@ type Props =
       workout: Workout;
       suggestions: string[];
       previous: Record<string, { date: string; sets: WorkoutSet[] }>;
+      overrides: Record<string, MuscleMap>;
     }
   | { kind: "routine"; routine: Routine; suggestions: string[] };
 
@@ -88,6 +90,7 @@ export function WorkoutForm(props: Props) {
           initial={item.exercises}
           suggestions={props.suggestions}
           previous={isWorkout ? props.previous : undefined}
+          overrides={isWorkout ? props.overrides : undefined}
           onChange={markDirty}
         />
       </section>

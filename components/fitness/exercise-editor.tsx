@@ -3,6 +3,7 @@
 import { Plus, Trash, X } from "@phosphor-icons/react";
 import { useId, useState } from "react";
 import { iconButtonClass, secondaryButtonClass } from "@/components/ui/form";
+import { musclesFor, suggestNext, type MuscleMap } from "@/lib/fitness/muscles";
 import { formatSets, performanceFor } from "@/lib/fitness/stats";
 import type { Exercise, WorkoutSet } from "@/lib/fitness/types";
 
@@ -43,6 +44,7 @@ export function ExerciseEditor({
   initial,
   suggestions,
   previous,
+  overrides,
   onChange,
 }: {
   initial: Exercise[];
@@ -50,6 +52,8 @@ export function ExerciseEditor({
   suggestions: string[];
   /** Last time each exercise was done (workouts only). */
   previous?: Record<string, { date: string; sets: WorkoutSet[] }>;
+  /** The user's exercise → muscles mapping, for Jax's load step (lower body moves in 5 kg). */
+  overrides?: Record<string, MuscleMap>;
   onChange?: () => void;
 }) {
   const [drafts, setDrafts] = useState(() => toDraft(initial));
@@ -97,6 +101,7 @@ export function ExerciseEditor({
       <ul className="flex flex-col gap-3">
         {drafts.map((e, i) => {
           const last = previous && e.name.trim() ? performanceFor(previous, e.name) : null;
+          const suggestion = last ? suggestNext(last.sets, musclesFor(e.name, overrides ?? {})) : null;
           return (
             <li key={e.key} className="animate-pop rounded-[20px] bg-surface p-[18px] sm:p-[22px]">
               <div className="flex items-center gap-2">
@@ -130,6 +135,26 @@ export function ExerciseEditor({
                 <p className="mt-1 pl-[46px] text-[12.5px] text-neutral-500">
                   Última vez: <span className="tabular-nums">{formatSets(last.sets)}</span>
                 </p>
+              )}
+              {suggestion && (
+                <div className="mt-2 ml-[46px] flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[12px] bg-accent-900 px-3 py-2 text-[13px]">
+                  <span>
+                    <span className="font-semibold">Jax sugiere:</span> <span className="tabular-nums">{formatSets(suggestion.sets)}</span>
+                    <span className="text-neutral-500"> · {suggestion.reason}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      editExercise(e.key, (x) => ({
+                        ...x,
+                        sets: suggestion.sets.map((s) => ({ key: nextKey(), reps: String(s.reps), weight: kgText(s.weight) })),
+                      }))
+                    }
+                    className="ml-auto rounded-full bg-accent px-3 py-1 text-[12.5px] font-semibold text-on-accent transition-colors hover:bg-accent-500"
+                  >
+                    Usar
+                  </button>
+                </div>
               )}
 
               {e.sets.length > 0 && (

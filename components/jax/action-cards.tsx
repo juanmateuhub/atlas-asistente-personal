@@ -14,6 +14,7 @@ import {
   GraduationCap,
   Layers,
   ListChecks,
+  PersonStanding,
   RotateCcw,
   Scale,
   Send,
@@ -37,6 +38,7 @@ const ICON = {
   workout: Dumbbell,
   routine: ListChecks,
   weight: Scale,
+  muscle: PersonStanding,
 } as const;
 
 type CardState = { status: JaxActionStatus; href: string | null; error?: string };

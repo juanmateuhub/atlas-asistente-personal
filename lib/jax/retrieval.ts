@@ -5,7 +5,9 @@ import { addDays } from "./dates";
 import { docToText } from "./doc-text";
 import { chunkText, keywords, searchPages, type PageHit, type SearchablePage } from "./search";
 import { emptyRefs, type RefMap } from "./tools";
-import { asExercises } from "@/lib/fitness/types";
+import { isMuscle, musclesFor, muscleVolume, suggestNext, type MuscleMap } from "@/lib/fitness/muscles";
+import { formatSets, lastPerformance } from "@/lib/fitness/stats";
+import { asExercises, type Workout } from "@/lib/fitness/types";
 import { instantToZoned } from "@/lib/reminders/time";
 
 /** Long-term memory is small by design: every fact goes into every prompt. */
@@ -23,7 +25,7 @@ export async function retrieveData(
   now: string,
 ): Promise<{ data: JaxData; refs: RefMap }> {
   const terms = keywords(question);
-  const [tasks, exams, events, subjects, pages, files, reminders, memories, workouts, routines, weights] = await Promise.all([
+  const [tasks, exams, events, subjects, pages, files, reminders, memories, workouts, routines, weights, muscles] = await Promise.all([
     supabase
       .from("tasks")
       .select("id,title,due_date,priority,status")
@@ -69,9 +71,10 @@ export async function retrieveData(
       .limit(15),
     supabase.from("workout_routines").select("name,exercises").order("name").limit(20),
     supabase.from("body_weights").select("id,measured_on,weight_kg").order("measured_on", { ascending: false }).limit(10),
+    supabase.from("exercise_muscles").select("id,exercise_key,muscles").limit(300),
   ]);
 
-  const failed = [tasks, exams, events, subjects, pages, files, reminders, memories, workouts, routines, weights].find(
+  const failed = [tasks, exams, events, subjects, pages, files, reminders, memories, workouts, routines, weights, muscles].find(
     (r) => r.error,
   );
   if (failed) throw new Error("retrieval failed");
@@ -168,6 +171,24 @@ export async function retrieveData(
 
   const routineItems = (routines.data ?? []).map((r) => ({ name: r.name, exercises: asExercises(r.exercises) }));
 
+  // Coaching: weekly volume per muscle and the next load for each recent exercise.
+  const overrides: Record<string, MuscleMap> = {};
+  for (const m of muscles.data ?? []) {
+    const list = (m.muscles as string[]).filter(isMuscle);
+    overrides[m.exercise_key] = list;
+    refs.mu.set(m.exercise_key, { id: m.id, label: m.exercise_key, values: { muscles: list.join(",") } });
+  }
+  const logged: Workout[] = workoutItems.map((w) => ({ id: w.ref, title: w.title, date: w.date, notes: null, exercises: w.exercises }));
+  const volume = muscleVolume(logged, overrides, today, 7);
+  const last = lastPerformance(logged);
+  const suggestions = Object.entries(last)
+    .slice(0, 15)
+    .flatMap(([key, { sets }]) => {
+      const exercise = logged.flatMap((w) => w.exercises).find((e) => e.name.trim().toLocaleLowerCase("es") === key);
+      const s = exercise ? suggestNext(sets, musclesFor(exercise.name, overrides)) : null;
+      return s && exercise ? [{ exercise: exercise.name, next: formatSets(s.sets), reason: s.reason }] : [];
+    });
+
   const weightItems = (weights.data ?? []).map((w, i) => {
     const ref = `bw${i + 1}`;
     const kg = Number(w.weight_kg);
@@ -200,6 +221,8 @@ export async function retrieveData(
       workouts: workoutItems,
       routines: routineItems,
       weights: weightItems,
+      muscleVolume: { muscles: volume.muscles.map((m) => ({ label: m.label, sets: m.sets })), unknown: volume.unknown },
+      loadSuggestions: suggestions,
       notes: rankSources(searchPages(searchable, question), documentHits(files.data ?? [], question)),
     },
     refs,

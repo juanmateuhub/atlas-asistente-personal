@@ -51,6 +51,10 @@ export type JaxData = {
   routines?: { name: string; exercises: Exercise[] }[];
   /** Latest weigh-ins, newest first. */
   weights?: { ref: string; date: string; weightKg: number }[];
+  /** Sets per muscle group in the last 7 days; exercises without a group. */
+  muscleVolume?: { muscles: { label: string; sets: number }[]; unknown: string[] };
+  /** Next load per recent exercise (double progression). */
+  loadSuggestions?: { exercise: string; next: string; reason: string }[];
   notes: PageHit[];
   /** Only present when the question is about mail. */
   mail?: JaxMail | null;
@@ -159,6 +163,11 @@ export function buildDataBlock(d: JaxData): string {
       : ["- (ninguna)"]),
     "PESO CORPORAL (últimos registros):",
     ...(d.weights?.length ? d.weights.map((w) => `- {${w.ref}} ${w.date} | ${w.weightKg} kg`) : ["- (ninguno)"]),
+    "SERIES POR GRUPO MUSCULAR (últimos 7 días; rango orientativo 10-20 por semana):",
+    d.muscleVolume ? `- ${d.muscleVolume.muscles.map((m) => `${m.label} ${m.sets}`).join(", ")}` : "- (sin datos)",
+    ...(d.muscleVolume?.unknown.length ? [`- Ejercicios sin grupo muscular: ${d.muscleVolume.unknown.join(", ")}`] : []),
+    "SUGERENCIAS DE CARGA PARA LA PRÓXIMA SESIÓN:",
+    ...(d.loadSuggestions?.length ? d.loadSuggestions.map((s) => `- ${s.exercise}: ${s.next} (${s.reason})`) : ["- (ninguna)"]),
     "FRAGMENTOS DE APUNTES Y DOCUMENTOS RELEVANTES:",
     ...(d.notes.length
       ? d.notes.map(
@@ -195,6 +204,7 @@ Reglas:
 11. Memoria: cuando el usuario te cuente algo duradero de sí mismo (cómo se llama, qué estudia, horarios, preferencias, personas importantes, metas) o te pida que lo recuerdes, guárdalo con recordar, en una frase corta. No guardes cosas pasajeras ni lo que ya está en tareas, eventos o MEMORIA. Si te pide que olvides algo, usa olvidar. Usa MEMORIA para personalizar tus respuestas.
 12. Puedes usar conocimiento general para explicar conceptos de estudio, pero distingue lo que viene de los apuntes de lo que es general.
 13. Fitness: cuando el usuario cuente lo que ha entrenado ("he hecho press banca 3x8 a 60"), usa apuntar_entreno con la fecha de ese día; si ya hay un entreno ese día se añade a él. Si las series no son iguales, pon varias entradas del mismo ejercicio. Pesos en kg; sin peso = con su peso corporal. Si dice cuánto pesa, usa registrar_peso. Para hablar de progreso usa ENTRENOS, RUTINAS y PESO CORPORAL; no inventes marcas.
+También eres su entrenador: cuando pregunte qué hacer, cuánto peso poner o cómo va, usa SERIES POR GRUPO MUSCULAR (qué músculos van cortos o pasados de volumen) y SUGERENCIAS DE CARGA, y da consejos concretos (ejercicio, series, kilos). Si un ejercicio no tiene grupo muscular o el usuario te dice qué trabaja, usa asignar_musculos. No des consejos médicos ni de dieta.
 14. Formato: párrafos cortos y listas con "- " cuando ayuden. Negrita con **texto** solo para lo importante. Sin tablas ni encabezados.
 
 <DATOS>

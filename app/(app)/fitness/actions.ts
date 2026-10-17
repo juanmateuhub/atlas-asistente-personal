@@ -6,7 +6,12 @@ import { getCurrentUser } from "@/lib/auth/user";
 import { createClient } from "@/lib/supabase/server";
 import { todayIn } from "@/lib/tasks/dates";
 import { parseTaskId as parseId } from "@/lib/tasks/validation";
+import { cleanCoachAnswer, coachData, COACH_SCHEMA, COACH_SYSTEM, type CoachAnswer } from "@/lib/fitness/coach";
+import { exerciseKey, isMuscle } from "@/lib/fitness/muscles";
+import { listBodyWeights, listMuscleOverrides, listWorkouts } from "@/lib/fitness/queries";
 import { asExercises } from "@/lib/fitness/types";
+import { generateJson } from "@/lib/jax/providers/gemini";
+import { ProviderError } from "@/lib/jax/providers/types";
 import {
   parseBodyWeightInput,
   parseRoutineInput,
@@ -158,4 +163,80 @@ export async function restoreBodyWeight(row: { date: string; weightKg: number })
   fd.set("date", row.date);
   fd.set("weight", String(row.weightKg));
   await logBodyWeight({}, fd);
+}
+
+// Muscle groups ----------------------------------------------------------------------
+
+/** Saves which muscles an exercise trains: `primary` plus optional `secondary` (repeated field). */
+export async function setExerciseMuscles(_prev: FitnessFormState, fd: FormData): Promise<FitnessFormState> {
+  const user = await getCurrentUser();
+  const name = String(fd.get("exercise") ?? "").trim();
+  const key = exerciseKey(name);
+  const primary = fd.get("primary");
+  if (!key) return { error: "Ejercicio no válido." };
+  if (!isMuscle(primary)) return { error: "Elige el músculo principal." };
+  const secondary = fd.getAll("secondary").filter(isMuscle).filter((m) => m !== primary);
+  if (secondary.length > 3) return { error: "Como mucho 3 músculos secundarios." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("exercise_muscles")
+    .upsert({ user_id: user.id, exercise_key: key, muscles: [primary, ...secondary] }, { onConflict: "user_id,exercise_key" });
+  if (error) return { error: FAILED };
+  refresh();
+  return { ok: true };
+}
+
+/** Back to the app's own guess for that exercise. */
+export async function resetExerciseMuscles(_prev: FitnessFormState, fd: FormData): Promise<FitnessFormState> {
+  await getCurrentUser();
+  const key = exerciseKey(String(fd.get("exercise") ?? ""));
+  if (!key) return { error: "Ejercicio no válido." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("exercise_muscles").delete().eq("exercise_key", key);
+  if (error) return { error: FAILED };
+  refresh();
+  return { ok: true };
+}
+
+// Jax as coach -----------------------------------------------------------------------
+
+const COACH_COOLDOWN_MS = 10 * 60_000;
+
+/** Asks Jax for an analysis of the last weeks and stores it. */
+export async function askCoach(): Promise<FitnessFormState> {
+  await getCurrentUser();
+  const supabase = await createClient();
+  const { data: last } = await supabase
+    .from("coach_notes")
+    .select("created_at")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (last && Date.now() - Date.parse(last.created_at) < COACH_COOLDOWN_MS) {
+    return { error: "Jax acaba de analizar tu entrenamiento. Vuelve a pedírselo en unos minutos." };
+  }
+
+  const [workouts, weights, overrides] = await Promise.all([listWorkouts(), listBodyWeights(), listMuscleOverrides()]);
+  if (!workouts.some((w) => w.exercises.some((e) => e.sets.length))) {
+    return { error: "Apunta algún entreno primero: Jax necesita datos para analizarlos." };
+  }
+  let answer: CoachAnswer | null;
+  try {
+    const raw = await generateJson<unknown>({
+      system: COACH_SYSTEM,
+      prompt: `<DATOS>\n${coachData(workouts, weights, overrides, todayIn(new Date()))}\n</DATOS>`,
+      schema: COACH_SCHEMA,
+    });
+    answer = cleanCoachAnswer(raw);
+  } catch (err) {
+    const limit = err instanceof ProviderError && err.kind === "rate_limit";
+    return { error: limit ? "Jax ha llegado a su límite de uso por hoy. Inténtalo más tarde." : "Jax no ha podido analizarlo ahora. Inténtalo de nuevo." };
+  }
+  if (!answer) return { error: "Jax no ha podido analizarlo ahora. Inténtalo de nuevo." };
+
+  const { error } = await supabase.from("coach_notes").insert({ summary: answer.summary, tips: answer.tips });
+  if (error) return { error: FAILED };
+  refresh();
+  return { ok: true };
 }
