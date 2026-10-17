@@ -1,20 +1,16 @@
 "use client";
 
 import { ArrowDownRight, ArrowUpRight, X } from "@phosphor-icons/react";
-import { useActionState, useRef, useState, useTransition } from "react";
+import { useActionState, useRef, useTransition } from "react";
 import { deleteBodyWeight, logBodyWeight, restoreBodyWeight } from "@/app/(app)/fitness/actions";
 import { FormError, iconButtonClass, inputClass, primaryButtonClass } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { formatKg, weightTrend } from "@/lib/fitness/stats";
-import { daysBetween } from "@/lib/tasks/dates";
 import type { BodyWeight } from "@/lib/fitness/types";
 import type { FitnessFormState } from "@/lib/fitness/validation";
+import { LineChart, fmtShortDate } from "./line-chart";
 
-const shortDate = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: "UTC" });
-const fmtDate = (d: string) => {
-  const [y, m, day] = d.split("-").map(Number);
-  return shortDate.format(new Date(Date.UTC(y, m - 1, day)));
-};
+const fmtDate = fmtShortDate;
 
 /** Latest weight, its trend, a chart of the last weigh-ins and the form to log today's. */
 export function WeightCard({ weights, today }: { weights: BodyWeight[]; today: string }) {
@@ -79,7 +75,16 @@ export function WeightCard({ weights, today }: { weights: BodyWeight[]; today: s
         </div>
       </div>
 
-      {weights.length >= 2 && <WeightChart weights={weights.slice(0, 60).toReversed()} />}
+      {weights.length >= 2 && (
+        <LineChart
+          label="Evolución del peso"
+          format={formatKg}
+          points={weights
+            .slice(0, 60)
+            .toReversed()
+            .map((w) => ({ date: w.date, value: w.weightKg }))}
+        />
+      )}
 
       <form ref={formRef} action={formAction} className="flex flex-col gap-2">
         <input type="hidden" name="date" value={today} />
@@ -123,72 +128,5 @@ export function WeightCard({ weights, today }: { weights: BodyWeight[]; today: s
         </details>
       )}
     </section>
-  );
-}
-
-const W = 320;
-const H = 120;
-const PAD = { top: 12, right: 8, bottom: 20, left: 8 };
-
-/** Single-series line, oldest to newest, with a crosshair tooltip. The list above is its table view. */
-function WeightChart({ weights }: { weights: BodyWeight[] }) {
-  const [hover, setHover] = useState<number | null>(null);
-  const values = weights.map((w) => w.weightKg);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  // At least ±1 kg of room so a flat series doesn't fill the box with noise.
-  const span = Math.max(max - min, 2);
-  const lo = (min + max) / 2 - span / 2;
-  // Time on x, so gaps between weigh-ins keep their real length.
-  const days = weights.map((w) => daysBetween(weights[0].date, w.date));
-  const total = Math.max(days.at(-1)!, 1);
-  const x = (i: number) => PAD.left + (days[i] / total) * (W - PAD.left - PAD.right);
-  const y = (v: number) => PAD.top + (1 - (v - lo) / span) * (H - PAD.top - PAD.bottom);
-  const path = weights.map((w, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(w.weightKg).toFixed(1)}`).join("");
-  const active = hover === null ? weights.length - 1 : hover;
-  const point = weights[active];
-
-  function onMove(e: React.PointerEvent<SVGSVGElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const px = ((e.clientX - rect.left) / rect.width) * W;
-    // Nearest weigh-in to the pointer.
-    let best = 0;
-    for (let i = 1; i < weights.length; i++) if (Math.abs(x(i) - px) < Math.abs(x(best) - px)) best = i;
-    setHover(best);
-  }
-
-  return (
-    <figure className="m-0 flex flex-col gap-1">
-      <div className="flex justify-between text-[12px] text-neutral-500 tabular-nums" aria-live="polite">
-        <span>
-          {fmtDate(point.date)} · <span className="font-medium text-neutral-200">{formatKg(point.weightKg)}</span>
-        </span>
-        <span>
-          {formatKg(min)} – {formatKg(max)}
-        </span>
-      </div>
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        className="block h-auto w-full touch-none"
-        role="img"
-        aria-label={`Evolución del peso: de ${formatKg(weights[0].weightKg)} el ${fmtDate(weights[0].date)} a ${formatKg(weights.at(-1)!.weightKg)} el ${fmtDate(weights.at(-1)!.date)}`}
-        onPointerMove={onMove}
-        onPointerDown={onMove}
-        onPointerLeave={() => setHover(null)}
-      >
-        <line x1={PAD.left} x2={W - PAD.right} y1={H - PAD.bottom} y2={H - PAD.bottom} stroke="var(--color-step)" strokeWidth={1} />
-        {hover !== null && (
-          <line x1={x(active)} x2={x(active)} y1={PAD.top - 4} y2={H - PAD.bottom} stroke="var(--color-neutral-700)" strokeWidth={1} />
-        )}
-        <path d={path} fill="none" stroke="var(--color-text)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-        <circle cx={x(active)} cy={y(point.weightKg)} r={5} fill="var(--color-accent)" stroke="var(--color-text)" strokeWidth={2} />
-        <text x={PAD.left} y={H - 4} fontSize={10} fill="var(--color-neutral-500)">
-          {fmtDate(weights[0].date)}
-        </text>
-        <text x={W - PAD.right} y={H - 4} fontSize={10} textAnchor="end" fill="var(--color-neutral-500)">
-          {fmtDate(weights.at(-1)!.date)}
-        </text>
-      </svg>
-    </figure>
   );
 }

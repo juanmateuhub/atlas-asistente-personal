@@ -6,6 +6,8 @@ import { getCurrentUser } from "@/lib/auth/user";
 import { createClient } from "@/lib/supabase/server";
 import { todayIn } from "@/lib/tasks/dates";
 import { parseTaskId as parseId } from "@/lib/tasks/validation";
+import { gameState, rewardBetween, type Reward } from "@/lib/fitness/game";
+import { listBodyWeights, listRoutines, listWorkouts } from "@/lib/fitness/queries";
 import { asExercises } from "@/lib/fitness/types";
 import {
   parseBodyWeightInput,
@@ -45,7 +47,7 @@ export async function startWorkout(fd: FormData): Promise<void> {
   redirect(`/fitness/entrenos/${data.id}`);
 }
 
-export async function saveWorkout(_prev: FitnessFormState, fd: FormData): Promise<FitnessFormState> {
+export async function saveWorkout(_prev: FitnessFormState, fd: FormData): Promise<FitnessFormState & { reward?: Reward }> {
   await getCurrentUser();
   const id = parseId(fd.get("id"));
   if (!id) return { error: "Entreno no válido." };
@@ -54,14 +56,21 @@ export async function saveWorkout(_prev: FitnessFormState, fd: FormData): Promis
 
   const { title, date, notes, exercises } = parsed.value;
   const supabase = await createClient();
+  // The game state before and after this save tells what it earned.
+  const [workouts, weights, routines] = await Promise.all([listWorkouts(), listBodyWeights(), listRoutines()]);
   const { data, error } = await supabase
     .from("workouts")
     .update({ title, workout_date: date, notes, exercises })
     .eq("id", id)
     .select("id");
   if (error || data.length === 0) return { error: FAILED };
+
+  const today = todayIn(new Date());
+  const before = gameState(workouts, weights, routines.length, today);
+  const updated = workouts.map((w) => (w.id === id ? { ...w, title, date, notes, exercises } : w));
+  const after = gameState(updated, weights, routines.length, today);
   refresh();
-  return { ok: true };
+  return { ok: true, reward: rewardBetween(before, after, id) };
 }
 
 export async function deleteWorkout(_prev: FitnessFormState, fd: FormData): Promise<FitnessFormState> {

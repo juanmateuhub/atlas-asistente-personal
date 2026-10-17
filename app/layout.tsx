@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Geist } from "next/font/google";
+import { Bricolage_Grotesque, Geist, Silkscreen } from "next/font/google";
 import "./globals.css";
 
 // Headlines: Bricolage Grotesque (character); everything else: Geist.
@@ -9,6 +9,12 @@ const bricolage = Bricolage_Grotesque({
 });
 const geist = Geist({
   variable: "--font-geist",
+  subsets: ["latin"],
+});
+// Pixel type for the game layer of Fitness (levels, XP, stats). Numbers and short labels only.
+const silkscreen = Silkscreen({
+  variable: "--font-silkscreen",
+  weight: ["400", "700"],
   subsets: ["latin"],
 });
 
@@ -32,7 +38,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="es" className={`${bricolage.variable} ${geist.variable} antialiased`}>
+    <html lang="es" className={`${bricolage.variable} ${geist.variable} ${silkscreen.variable} antialiased`}>
       <body className="min-h-dvh">{children}</body>
     </html>
   );
