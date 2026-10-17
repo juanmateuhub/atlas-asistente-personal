@@ -10,12 +10,20 @@ import { AddToDay } from "./add-to-day";
 import { EventFields } from "./event-fields";
 
 /** Dot colour per kind, as in the redesign's legend. */
-/** Exams are the most important, so they get full ink; events the signal yellow; tasks grey. */
+/** Exams are the most important, so they get full ink; events the signal yellow; classes blue; tasks grey. */
 export const KIND_COLOR = {
   exam: "var(--color-text)",
   event: "var(--color-accent-600)",
+  class: "var(--color-class)",
   task: "var(--color-neutral-600)",
 } as const;
+
+export type DotKind = keyof typeof KIND_COLOR;
+
+/** Events from another Google calendar (the UJI timetable) are classes. */
+export function dotKind(item: AgendaItem): DotKind {
+  return item.kind === "event" && item.event.calendarName ? "class" : item.kind;
+}
 
 const weekdayFmt = new Intl.DateTimeFormat("es-ES", { weekday: "long", timeZone: "UTC" });
 const monthYearFmt = new Intl.DateTimeFormat("es-ES", { month: "long", timeZone: "UTC" });
@@ -107,7 +115,7 @@ export function DayAgenda({
 
 function AgendaRow({ item }: { item: AgendaItem }) {
   const done = item.kind === "task" && item.done;
-  const color = KIND_COLOR[item.kind];
+  const color = KIND_COLOR[dotKind(item)];
   const type =
     item.kind === "exam"
       ? `Examen · ${item.subjectName}`

@@ -14,7 +14,7 @@ import {
   type MonthKey,
 } from "@/lib/calendar/grid";
 import { groupByDate, type AgendaItem } from "@/lib/calendar/types";
-import { DayAgenda, KIND_COLOR } from "./day-agenda";
+import { DayAgenda, KIND_COLOR, dotKind } from "./day-agenda";
 
 const ROW_H = 66;
 const navButtonClass =
@@ -132,6 +132,10 @@ export function CalendarView({
             Evento
           </li>
           <li className="flex items-center gap-[7px]">
+            <span aria-hidden className="size-[7px] rounded-full" style={{ background: KIND_COLOR.class }} />
+            Clase
+          </li>
+          <li className="flex items-center gap-[7px]">
             <span aria-hidden className="size-[7px] rounded-full" style={{ background: KIND_COLOR.task }} />
             Tarea
           </li>
@@ -173,7 +177,7 @@ function DayCell({
   const dayNumber = Number(date.slice(8));
   const label = `${formatDay(date)}${items.length ? `, ${items.length} ${items.length === 1 ? "elemento" : "elementos"}` : ""}`;
   // One dot per kind present that day; open tasks only.
-  const kinds = [...new Set(items.filter((i) => i.kind !== "task" || !i.done).map((i) => i.kind))];
+  const kinds = [...new Set(items.filter((i) => i.kind !== "task" || !i.done).map(dotKind))];
 
   return (
     <button

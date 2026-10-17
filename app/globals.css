@@ -23,6 +23,8 @@
   /* The accent when it has to be read: links, highlighted words, icons. */
   --color-accent-ink: #8a6a00;
   --color-accent-2: #8a6a00;
+  /* Category mark for classes from the UJI timetable, so they don't read as events. Dots and bars only, never text. */
+  --color-class: #4f6fd6;
   --color-divider: color-mix(in srgb, #0e0e0e 14%, transparent);
   --color-danger: #c62828;
   --color-danger-soft: #fde4e4;
