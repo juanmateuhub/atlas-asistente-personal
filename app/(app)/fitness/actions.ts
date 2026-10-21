@@ -199,6 +199,40 @@ export async function resetExerciseMuscles(_prev: FitnessFormState, fd: FormData
   return { ok: true };
 }
 
+/**
+ * Removes an exercise everywhere: from every workout and routine that has it
+ * (sets included) and its muscle mapping. Matched by exercise key, so
+ * "Press banca" and "press  banca" go together.
+ */
+export async function deleteExercise(_prev: FitnessFormState, fd: FormData): Promise<FitnessFormState> {
+  await getCurrentUser();
+  const key = exerciseKey(String(fd.get("exercise") ?? ""));
+  if (!key) return { error: "Ejercicio no válido." };
+  const supabase = await createClient();
+  const [workouts, routines] = await Promise.all([
+    supabase.from("workouts").select("id,exercises"),
+    supabase.from("workout_routines").select("id,exercises"),
+  ]);
+  if (workouts.error || routines.error) return { error: "No se ha podido borrar. Inténtalo de nuevo." };
+
+  const updates = (
+    [
+      ["workouts", workouts.data],
+      ["workout_routines", routines.data],
+    ] as const
+  ).flatMap(([table, rows]) =>
+    rows.flatMap((row) => {
+      const exercises = asExercises(row.exercises);
+      const kept = exercises.filter((e) => exerciseKey(e.name) !== key);
+      return kept.length === exercises.length ? [] : [supabase.from(table).update({ exercises: kept }).eq("id", row.id)];
+    }),
+  );
+  const results = await Promise.all([...updates, supabase.from("exercise_muscles").delete().eq("exercise_key", key)]);
+  refresh();
+  if (results.some((r) => r.error)) return { error: "No se ha podido borrar de todos los sitios. Inténtalo de nuevo." };
+  return { ok: true };
+}
+
 // Jax as coach -----------------------------------------------------------------------
 
 const COACH_COOLDOWN_MS = 10 * 60_000;

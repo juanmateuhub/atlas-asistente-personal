@@ -95,13 +95,15 @@ function schema(properties: Record<string, unknown>, required: string[]) {
 /** Exercises as "sets × reps at kg"; several entries of one exercise for uneven sets. */
 const exercisesParam = {
   type: "array",
-  description: "Ejercicios. «3x8 a 60 kg» = sets 3, reps 8, weight_kg 60. Sin weight_kg = con el peso corporal.",
+  description:
+    "Ejercicios. «3x8 a 60 kg» = sets 3, reps 8, weight_kg 60. Sin weight_kg = con el peso corporal. double true si los kg son por mancuerna o por lado (dos mancuernas, unilateral): cuentan el doble.",
   items: schema(
     {
       name: { type: "string", description: "Nombre del ejercicio, p. ej. Press banca" },
       sets: { type: "integer", minimum: 1, maximum: SETS_MAX },
       reps: { type: "integer", minimum: 0, maximum: 1000 },
       weight_kg: { type: "number", minimum: 0, maximum: 1000 },
+      double: { type: "boolean" },
     },
     ["name", "sets", "reps"],
   ),
@@ -292,7 +294,11 @@ function toExercises(raw: unknown): { ok: true; value: Exercise[] } | { ok: fals
     const weight = e.weight_kg === undefined || e.weight_kg === null ? null : parseNumber(e.weight_kg);
     // Invalid numbers are kept as -1 so parseExercises reports them.
     const reps = parseNumber(e.reps) ?? -1;
-    return { name: text(e.name), sets: n ? expandSets(n, reps, weight ?? null) : [{ reps: -1, weight: null }] };
+    return {
+      name: text(e.name),
+      sets: n ? expandSets(n, reps, weight ?? null) : [{ reps: -1, weight: null }],
+      ...(e.double === true && { double: true as const }),
+    };
   });
   const parsed = parseExercises(mergeExercises([], expanded));
   if (!parsed.ok) return parsed;
@@ -306,13 +312,16 @@ export function mergeExercises(base: Exercise[], extra: Exercise[]): Exercise[] 
   for (const e of extra) {
     const name = cleanExerciseName(e.name);
     const same = out.find((o) => o.name.toLocaleLowerCase("es") === name.toLocaleLowerCase("es"));
-    if (same) same.sets.push(...e.sets);
-    else out.push({ name, sets: [...e.sets] });
+    if (same) {
+      same.sets.push(...e.sets);
+      if (e.double) same.double = true;
+    } else out.push({ name, sets: [...e.sets], ...(e.double && { double: true as const }) });
   }
   return out;
 }
 
-const describeExercises = (exercises: Exercise[]) => exercises.map((e) => `${e.name} ${formatSets(e.sets)}`).join("; ");
+const describeExercises = (exercises: Exercise[]) =>
+  exercises.map((e) => `${e.name} ${formatSets(e.sets)}${e.double ? " por lado" : ""}`).join("; ");
 const fmtDate = (d: string | null | undefined) => {
   if (!d) return "";
   const [y, m, day] = d.split("-").map(Number);

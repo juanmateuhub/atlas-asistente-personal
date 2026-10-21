@@ -1,5 +1,5 @@
 import { daysBetween } from "@/lib/tasks/dates";
-import type { BodyWeight, Exercise, Workout, WorkoutSet } from "./types";
+import { loadFactor, type BodyWeight, type Exercise, type Workout, type WorkoutSet } from "./types";
 
 const kgFmt = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 });
 
@@ -20,9 +20,9 @@ export function formatSets(sets: WorkoutSet[]): string {
   return sets.map((s) => (s.weight === null ? `${s.reps}` : `${s.reps} × ${kgFmt.format(s.weight)}`)).join(", ") + " kg";
 }
 
-/** Total kg moved (reps × load); bodyweight sets count zero. */
+/** Total kg moved (reps × load, twice for per-side loads); bodyweight sets count zero. */
 export function volume(exercises: Exercise[]): number {
-  return exercises.reduce((sum, e) => sum + e.sets.reduce((s, set) => s + set.reps * (set.weight ?? 0), 0), 0);
+  return exercises.reduce((sum, e) => sum + loadFactor(e) * e.sets.reduce((s, set) => s + set.reps * (set.weight ?? 0), 0), 0);
 }
 
 export function countSets(exercises: Exercise[]): number {
@@ -36,23 +36,22 @@ export function summarize(exercises: Exercise[]): string {
   return `${n} ${n === 1 ? "ejercicio" : "ejercicios"} · ${sets} ${sets === 1 ? "serie" : "series"}`;
 }
 
+export type LastPerformance = { date: string; sets: WorkoutSet[]; double?: true };
+
 /** What was done the last time for each exercise, from workouts newest first. */
-export function lastPerformance(
-  workouts: Workout[],
-  excludeId?: string,
-): Record<string, { date: string; sets: WorkoutSet[] }> {
-  const out: Record<string, { date: string; sets: WorkoutSet[] }> = {};
+export function lastPerformance(workouts: Workout[], excludeId?: string): Record<string, LastPerformance> {
+  const out: Record<string, LastPerformance> = {};
   for (const w of workouts) {
     if (w.id === excludeId) continue;
     for (const e of w.exercises) {
       const key = exerciseKey(e.name);
-      if (!(key in out) && e.sets.length > 0) out[key] = { date: w.date, sets: e.sets };
+      if (!(key in out) && e.sets.length > 0) out[key] = { date: w.date, sets: e.sets, ...(e.double && { double: e.double }) };
     }
   }
   return out;
 }
 
-export function performanceFor(map: Record<string, { date: string; sets: WorkoutSet[] }>, name: string) {
+export function performanceFor(map: Record<string, LastPerformance>, name: string) {
   return map[exerciseKey(name)] ?? null;
 }
 

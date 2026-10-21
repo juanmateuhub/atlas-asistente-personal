@@ -4,7 +4,7 @@
  * English) exercise names; the user's own mapping (exercise_muscles) wins.
  */
 import { daysBetween } from "@/lib/tasks/dates";
-import type { Workout, WorkoutSet } from "./types";
+import { loadFactor, type Workout, type WorkoutSet } from "./types";
 
 export const MUSCLES = [
   { id: "pecho", label: "Pecho" },
@@ -120,7 +120,7 @@ export function muscleVolume(workouts: Workout[], overrides: Record<string, Musc
         unknown.set(exerciseKey(e.name), e.name);
         continue;
       }
-      const kg = sets.reduce((sum, s) => sum + s.reps * (s.weight ?? 0), 0);
+      const kg = loadFactor(e) * sets.reduce((sum, s) => sum + s.reps * (s.weight ?? 0), 0);
       map.forEach((id, i) => {
         const share = i === 0 ? 1 : 0.5;
         const t = totals.get(id)!;

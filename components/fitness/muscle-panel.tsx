@@ -1,11 +1,10 @@
 "use client";
 
-import { PencilSimple, Warning } from "@phosphor-icons/react";
-import dynamic from "next/dynamic";
+import { PencilSimple, Trash, Warning } from "@phosphor-icons/react";
 import { useActionState, useMemo, useState } from "react";
-import { resetExerciseMuscles, setExerciseMuscles } from "@/app/(app)/fitness/actions";
+import { deleteExercise, resetExerciseMuscles, setExerciseMuscles } from "@/app/(app)/fitness/actions";
 import { Dialog, useDialog } from "@/components/ui/dialog";
-import { Field, FormError, iconButtonClass, inputClass, primaryButtonClass, secondaryButtonClass } from "@/components/ui/form";
+import { dangerButtonClass, Field, FormError, iconButtonClass, inputClass, primaryButtonClass, secondaryButtonClass } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import {
   MUSCLES,
@@ -19,19 +18,21 @@ import {
   type VolumeReport,
 } from "@/lib/fitness/muscles";
 import type { FitnessFormState } from "@/lib/fitness/validation";
-import { LEVEL_COLORS } from "./body-3d-colors";
-
-// three.js only loads in the browser, and only on this screen.
-const Body3D = dynamic(() => import("./body-3d").then((m) => m.Body3D), {
-  ssr: false,
-  loading: () => <div className="size-full animate-skeleton rounded-[18px] bg-step" />,
-});
+import { LEVEL_COLORS } from "./body-colors";
+import { BodyMap } from "./body-map";
 
 const fmt = (n: number) => n.toLocaleString("es-ES", { maximumFractionDigits: 1 });
 
-export type ExerciseMuscles = { name: string; muscles: MuscleMap | null; custom: boolean };
+export type ExerciseMuscles = {
+  name: string;
+  muscles: MuscleMap | null;
+  custom: boolean;
+  /** How many workouts and routines use it. */
+  workouts: number;
+  routines: number;
+};
 
-/** Weekly volume per muscle group: 3D body, legend, ranked list and the exercise → muscles mapping. */
+/** Weekly volume per muscle group: anatomy map, legend, ranked list and the exercise → muscles mapping. */
 export function MusclePanel({
   week,
   month,
@@ -49,6 +50,7 @@ export function MusclePanel({
     () => Object.fromEntries(report.muscles.map((m) => [m.id, volumeLevel(m.sets)])) as Record<MuscleId, VolumeLevel>,
     [report],
   );
+  const sets = useMemo(() => Object.fromEntries(report.muscles.map((m) => [m.id, m.sets])) as Record<MuscleId, number>, [report]);
   const ranked = report.muscles.toSorted((a, b) => b.sets - a.sets);
   const detail = selected ? report.muscles.find((m) => m.id === selected)! : null;
   const unknown = exercises.filter((e) => !e.muscles);
@@ -95,8 +97,8 @@ export function MusclePanel({
 
       <div className="grid grid-cols-1 gap-4 rounded-[22px] bg-surface p-[18px] sm:p-[22px] md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="flex flex-col gap-3">
-          <div className="h-[380px] md:h-[440px]">
-            <Body3D levels={levels} selected={selected} onSelect={setSelected} />
+          <div className="h-[420px] md:h-[480px]">
+            <BodyMap levels={levels} sets={sets} selected={selected} onSelect={setSelected} />
           </div>
           <Legend />
         </div>
@@ -186,17 +188,20 @@ function Legend() {
   );
 }
 
-/** Every exercise you have used and its muscles; each can be changed or reset to the app's guess. */
+/** Every exercise you have used and its muscles; each can be changed, reset to the app's guess or deleted. */
 function ExerciseMusclesButton({ exercises }: { exercises: ExerciseMuscles[] }) {
   const dialog = useDialog();
   const [editing, setEditing] = useState<ExerciseMuscles | null>(null);
+  const [deleting, setDeleting] = useState<ExerciseMuscles | null>(null);
   return (
     <>
       <button type="button" onClick={dialog.open} className={`${secondaryButtonClass} h-[36px] text-[13.5px]`}>
         Ejercicios
       </button>
       <Dialog dialogRef={dialog.ref} title="Ejercicios y músculos" subtitle="El primero es el principal; los demás cuentan la mitad." onClose={dialog.close}>
-        {editing ? (
+        {deleting ? (
+          <DeleteExerciseForm key={deleting.name} exercise={deleting} onDone={() => setDeleting(null)} />
+        ) : editing ? (
           <MuscleForm key={editing.name} exercise={editing} onDone={() => setEditing(null)} />
         ) : exercises.length === 0 ? (
           <p className="m-0 text-[14px] text-neutral-400">Aún no has usado ningún ejercicio.</p>
@@ -214,12 +219,54 @@ function ExerciseMusclesButton({ exercises }: { exercises: ExerciseMuscles[] }) 
                 <button type="button" onClick={() => setEditing(e)} aria-label={`Editar músculos de ${e.name}`} className={iconButtonClass}>
                   <PencilSimple size={16} />
                 </button>
+                <button type="button" onClick={() => setDeleting(e)} aria-label={`Borrar ${e.name}`} className={iconButtonClass}>
+                  <Trash size={16} />
+                </button>
               </li>
             ))}
           </ul>
         )}
       </Dialog>
     </>
+  );
+}
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/** Confirmation before removing an exercise from every workout and routine. */
+function DeleteExerciseForm({ exercise, onDone }: { exercise: ExerciseMuscles; onDone: () => void }) {
+  const toast = useToast();
+  const [state, action, pending] = useActionState(async (prev: FitnessFormState, fd: FormData) => {
+    const result = await deleteExercise(prev, fd);
+    if (result.ok) {
+      toast("Ejercicio borrado");
+      onDone();
+    }
+    return result;
+  }, {});
+  const where = [
+    exercise.workouts > 0 && plural(exercise.workouts, "entreno", "entrenos"),
+    exercise.routines > 0 && plural(exercise.routines, "rutina", "rutinas"),
+  ].filter(Boolean);
+
+  return (
+    <form action={action} className="flex flex-col gap-4">
+      <input type="hidden" name="exercise" value={exercise.name} />
+      <p className="m-0 font-heading text-[19px] font-bold tracking-[-0.02em]">¿Borrar {exercise.name}?</p>
+      <p className="m-0 text-[14.5px] leading-[1.5] text-neutral-400">
+        {where.length > 0 ? `Se quitará de ${where.join(" y ")}, con todas sus series.` : "Se quitará de todos tus entrenos y rutinas."} Sus
+        marcas y su historial desaparecerán. No se puede deshacer.
+      </p>
+      <FormError message={state.error} />
+      <div className="flex flex-wrap justify-end gap-2">
+        <button type="button" onClick={onDone} className={secondaryButtonClass}>
+          Cancelar
+        </button>
+        <button type="submit" disabled={pending} className={dangerButtonClass}>
+          {pending ? "Borrando…" : "Borrar"}
+        </button>
+      </div>
+    </form>
   );
 }
 

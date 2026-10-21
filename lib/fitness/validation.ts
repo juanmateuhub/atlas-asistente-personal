@@ -79,7 +79,7 @@ export function parseExercises(raw: unknown): Parsed<Exercise[]> {
       if (!set.ok) return set;
       sets.push(set.value);
     }
-    exercises.push({ name, sets });
+    exercises.push({ name, sets, ...(e.double === true && { double: true as const }) });
   }
   if (exercises.length > EXERCISES_MAX) return { ok: false, error: `Como mucho ${EXERCISES_MAX} ejercicios.` };
   return { ok: true, value: exercises };

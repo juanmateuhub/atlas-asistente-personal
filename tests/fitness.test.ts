@@ -228,3 +228,37 @@ describe("Jax data block", () => {
     expect(stripUnknownRefs("Hecho {w1} y [bw2].", [])).toBe("Hecho y.");
   });
 });
+
+describe("per-side loads", () => {
+  const curl = { name: "Curl martillo", sets: [{ reps: 10, weight: 12 }], double: true as const };
+
+  it("count twice towards the kg moved", () => {
+    expect(volume([curl, { name: "Press banca", sets: [{ reps: 5, weight: 60 }] }])).toBe(240 + 300);
+  });
+
+  it("are kept by the validator only when true", () => {
+    const r = parseExercises(JSON.stringify([{ ...curl }, { name: "Fondos", sets: [{ reps: 8, weight: "" }], double: false }]));
+    expect(r).toEqual({
+      ok: true,
+      value: [
+        { name: "Curl martillo", sets: [{ reps: 10, weight: 12 }], double: true },
+        { name: "Fondos", sets: [{ reps: 8, weight: null }] },
+      ],
+    });
+  });
+
+  it("are remembered as the last performance", () => {
+    const workouts: Workout[] = [{ id: ID(1), title: "Brazo", date: "2026-10-20", notes: null, exercises: [curl] }];
+    expect(lastPerformance(workouts)["curl martillo"]).toEqual({ date: "2026-10-20", sets: curl.sets, double: true });
+  });
+
+  it("can be logged through Jax", () => {
+    const r = toProposal(
+      "apuntar_entreno",
+      { date: "2026-10-18", title: "Brazo", exercises: [{ name: "Curl martillo", sets: 2, reps: 10, weight_kg: 12, double: true }] },
+      refs(),
+    );
+    expect(r).toMatchObject({ ok: true, proposal: { payload: { values: { exercises: [{ name: "Curl martillo", double: true }] } } } });
+    if (r.ok) expect(r.proposal.summary).toContain("por lado");
+  });
+});

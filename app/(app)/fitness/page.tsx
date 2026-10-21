@@ -79,8 +79,16 @@ async function Overview() {
     latestCoachNote(),
   ]);
   const exercises = exerciseNames(workouts, routines).map((name) => {
-    const custom = overrides[exerciseKey(name)];
-    return { name, muscles: custom ?? guessMuscles(name), custom: !!custom };
+    const key = exerciseKey(name);
+    const custom = overrides[key];
+    const has = (w: { exercises: { name: string }[] }) => w.exercises.some((e) => exerciseKey(e.name) === key);
+    return {
+      name,
+      muscles: custom ?? guessMuscles(name),
+      custom: !!custom,
+      workouts: workouts.filter(has).length,
+      routines: routines.filter(has).length,
+    };
   });
   const records = personalRecords(workouts, 6);
   const history = Object.fromEntries(

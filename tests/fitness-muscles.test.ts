@@ -116,3 +116,13 @@ describe("Jax asignar_musculos", () => {
     expect(toProposal("asignar_musculos", { exercise: "Cc", muscles: ["alas"] }, refs).ok).toBe(false);
   });
 });
+
+describe("muscleVolume with per-side loads", () => {
+  it("doubles the kg but not the sets", () => {
+    const workouts: Workout[] = [
+      { id: "a", title: "Entreno", date: "2026-10-16", notes: null, exercises: [{ name: "Curl", sets: [{ reps: 10, weight: 12 }], double: true }] },
+    ];
+    const biceps = muscleVolume(workouts, {}, "2026-10-17", 7).muscles.find((m) => m.id === "biceps")!;
+    expect(biceps).toMatchObject({ sets: 1, kg: 240 });
+  });
+});

@@ -6,9 +6,9 @@ import { deleteRoutine, deleteWorkout, routineFromWorkout, saveRoutine, saveWork
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Field, FormError, inputClass, primaryButtonClass, secondaryButtonClass } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
-import { summarize, volume, formatKg } from "@/lib/fitness/stats";
+import { summarize, volume, formatKg, type LastPerformance } from "@/lib/fitness/stats";
 import type { MuscleMap } from "@/lib/fitness/muscles";
-import type { Routine, Workout, WorkoutSet } from "@/lib/fitness/types";
+import type { Routine, Workout } from "@/lib/fitness/types";
 import type { FitnessFormState } from "@/lib/fitness/validation";
 import { ExerciseEditor } from "./exercise-editor";
 
@@ -17,7 +17,7 @@ type Props =
       kind: "workout";
       workout: Workout;
       suggestions: string[];
-      previous: Record<string, { date: string; sets: WorkoutSet[] }>;
+      previous: Record<string, LastPerformance>;
       overrides: Record<string, MuscleMap>;
     }
   | { kind: "routine"; routine: Routine; suggestions: string[] };

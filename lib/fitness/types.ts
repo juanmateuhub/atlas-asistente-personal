@@ -1,8 +1,15 @@
 /** One set: repetitions and the load in kg (null = bodyweight). */
 export type WorkoutSet = { reps: number; weight: number | null };
 
-/** An exercise as logged in a workout, or planned in a routine. */
-export type Exercise = { name: string; sets: WorkoutSet[] };
+/**
+ * An exercise as logged in a workout, or planned in a routine. `double`: the kg
+ * typed are per dumbbell or per side (two dumbbells, unilateral work), so the
+ * load moved counts twice. Only stored when true.
+ */
+export type Exercise = { name: string; sets: WorkoutSet[]; double?: true };
+
+/** How many times the typed load counts towards the kg moved. */
+export const loadFactor = (e: Pick<Exercise, "double">) => (e.double ? 2 : 1);
 
 export type Workout = {
   id: string;
@@ -39,7 +46,7 @@ export function asExercises(value: unknown): Exercise[] {
       if (typeof reps !== "number") return [];
       return [{ reps, weight: typeof weight === "number" ? weight : null }];
     });
-    return [{ name: e.name, sets }];
+    return [{ name: e.name, sets, ...(e.double === true && { double: true as const }) }];
   });
 }
 

@@ -4,11 +4,11 @@ import { Plus, Trash, X } from "@phosphor-icons/react";
 import { useId, useState } from "react";
 import { iconButtonClass, secondaryButtonClass } from "@/components/ui/form";
 import { musclesFor, suggestNext, type MuscleMap } from "@/lib/fitness/muscles";
-import { formatSets, performanceFor } from "@/lib/fitness/stats";
-import type { Exercise, WorkoutSet } from "@/lib/fitness/types";
+import { formatSets, performanceFor, type LastPerformance } from "@/lib/fitness/stats";
+import type { Exercise } from "@/lib/fitness/types";
 
 type SetDraft = { key: number; reps: string; weight: string };
-type ExerciseDraft = { key: number; name: string; sets: SetDraft[] };
+type ExerciseDraft = { key: number; name: string; double: boolean; sets: SetDraft[] };
 
 let seq = 0;
 const nextKey = () => ++seq;
@@ -19,6 +19,7 @@ function toDraft(exercises: Exercise[]): ExerciseDraft[] {
   return exercises.map((e) => ({
     key: nextKey(),
     name: e.name,
+    double: !!e.double,
     sets: e.sets.map((s) => ({ key: nextKey(), reps: String(s.reps), weight: kgText(s.weight) })),
   }));
 }
@@ -28,6 +29,7 @@ function serialize(drafts: ExerciseDraft[]) {
   return JSON.stringify(
     drafts.map((e) => ({
       name: e.name,
+      double: e.double,
       sets: e.sets.filter((s) => s.reps.trim() || s.weight.trim()).map((s) => ({ reps: s.reps, weight: s.weight })),
     })),
   );
@@ -51,7 +53,7 @@ export function ExerciseEditor({
   /** Exercise names used before, offered while typing. */
   suggestions: string[];
   /** Last time each exercise was done (workouts only). */
-  previous?: Record<string, { date: string; sets: WorkoutSet[] }>;
+  previous?: Record<string, LastPerformance>;
   /** The user's exercise → muscles mapping, for Jax's load step (lower body moves in 5 kg). */
   overrides?: Record<string, MuscleMap>;
   onChange?: () => void;
@@ -75,7 +77,7 @@ export function ExerciseEditor({
   }
 
   function addExercise() {
-    update((d) => [...d, { key: nextKey(), name: "", sets: [{ key: nextKey(), reps: "", weight: "" }] }]);
+    update((d) => [...d, { key: nextKey(), name: "", double: false, sets: [{ key: nextKey(), reps: "", weight: "" }] }]);
     // Focus the new exercise's name once it is rendered.
     requestAnimationFrame(() => {
       const inputs = document.querySelectorAll<HTMLInputElement>("[data-exercise-name]");
@@ -115,7 +117,12 @@ export function ExerciseEditor({
                   data-exercise-name
                   list={listId}
                   value={e.name}
-                  onChange={(ev) => editExercise(e.key, (x) => ({ ...x, name: ev.target.value }))}
+                  onChange={(ev) => {
+                    const name = ev.target.value;
+                    // A known exercise keeps how its kg were counted last time.
+                    const known = previous && name.trim() ? performanceFor(previous, name) : null;
+                    editExercise(e.key, (x) => ({ ...x, name, double: known ? !!known.double : x.double }));
+                  }}
                   placeholder="Ejercicio (p. ej. Press banca)"
                   aria-label={`Nombre del ejercicio ${i + 1}`}
                   maxLength={60}
@@ -161,7 +168,7 @@ export function ExerciseEditor({
                 <div className="mt-3 grid grid-cols-[30px_minmax(0,1fr)_minmax(0,1fr)_32px] items-center gap-x-2 gap-y-2">
                   <span aria-hidden />
                   <span className="text-center text-[11px] font-medium tracking-[0.08em] text-neutral-500 uppercase">Reps</span>
-                  <span className="text-center text-[11px] font-medium tracking-[0.08em] text-neutral-500 uppercase">Kg</span>
+                  <span className="text-center text-[11px] font-medium tracking-[0.08em] text-neutral-500 uppercase">{e.double ? "Kg por lado" : "Kg"}</span>
                   <span aria-hidden />
                   {e.sets.map((s, j) => (
                     <SetRow
@@ -178,10 +185,22 @@ export function ExerciseEditor({
                 </div>
               )}
 
-              <button type="button" onClick={() => addSet(e.key)} className={`${secondaryButtonClass} mt-3 h-[36px] text-[13.5px]`}>
-                <Plus size={14} weight="bold" />
-                Serie
-              </button>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button type="button" onClick={() => addSet(e.key)} className={`${secondaryButtonClass} h-[36px] text-[13.5px]`}>
+                  <Plus size={14} weight="bold" />
+                  Serie
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={e.double}
+                  onClick={() => editExercise(e.key, (x) => ({ ...x, double: !x.double }))}
+                  title="Para dos mancuernas o ejercicios a una mano o una pierna: los kg que pones cuentan el doble en el volumen."
+                  className="pressable inline-flex h-[36px] items-center gap-[6px] rounded-full px-[14px] text-[13.5px] font-medium transition-[background,color,scale] aria-pressed:bg-text aria-pressed:text-bg aria-[pressed=false]:bg-step aria-[pressed=false]:text-neutral-400 aria-[pressed=false]:hover:bg-neutral-800"
+                >
+                  <span className="tabular-nums">×2</span>
+                  Por mancuerna o lado
+                </button>
+              </div>
             </li>
           );
         })}
